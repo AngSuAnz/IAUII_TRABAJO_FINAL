@@ -5,8 +5,16 @@
       "title": "About this site",
       "description": "Some additional details about the website",
       "author": [],
-      "contents": "\r\n\r\n\r\n\r\n",
-      "last_modified": "2023-10-04T16:43:16-03:00"
+      "contents": "\r\nHolis\r\n\r\n\r\n\r\n",
+      "last_modified": "2023-10-04T17:26:41-03:00"
+    },
+    {
+      "path": "fuentes.html",
+      "title": "About this site",
+      "description": "Some additional details about the website",
+      "author": [],
+      "contents": "\r\nFuentes:\r\n\r\n\r\n\r\n",
+      "last_modified": "2023-10-04T17:26:47-03:00"
     },
     {
       "path": "index.html",
@@ -14,7 +22,7 @@
       "description": "Welcome to the website. I hope you enjoy it!\n",
       "author": [],
       "contents": "\r\n\r\n\r\n\r\n",
-      "last_modified": "2023-10-04T16:43:22-03:00"
+      "last_modified": "2023-10-04T17:26:50-03:00"
     }
   ],
   "collections": []
