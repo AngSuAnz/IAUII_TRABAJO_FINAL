@@ -3,6 +3,7 @@ title: "IAUII_FINAL"
 description: |
   IAUII_FINAL
 output_dir: "docs"
+theme: minimal
 navbar:
   right:
     - text: "Home"
