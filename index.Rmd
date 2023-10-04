@@ -1,7 +1,7 @@
 ---
-title: "IAUII_FINAL"
+title: "Trabajo Final ---"
 description: |
-  Welcome to the website. I hope you enjoy it!
+  Instrumentos de Análisis Urbano II
 site: distill::distill_website
 ---
 

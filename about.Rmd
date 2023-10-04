@@ -1,10 +1,14 @@
 ---
-title: "About this site"
+title: "+Info"
 description: |
-  Some additional details about the website
+  Información adicional
 ---
 
-Holis
+**Docentes** | Juan Pablo Ruiz Nicolini, Pablo Tiscornia
+
+**Alumna**   | Ángeles Suarez Anzorena
+
+**UTDT**     | MEU 2023
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)

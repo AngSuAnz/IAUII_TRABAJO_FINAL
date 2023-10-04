@@ -2,27 +2,35 @@
   "articles": [
     {
       "path": "about.html",
-      "title": "About this site",
-      "description": "Some additional details about the website",
+      "title": "+Info",
+      "description": "Información adicional",
       "author": [],
-      "contents": "\r\nHolis\r\n\r\n\r\n\r\n",
-      "last_modified": "2023-10-04T17:26:41-03:00"
+      "contents": "\r\nDocentes | Juan Pablo Ruiz Nicolini, Pablo Tiscornia\r\nAlumna | Ángeles Suarez Anzorena\r\nUTDT | MEU 2023\r\n\r\n\r\n\r\n",
+      "last_modified": "2023-10-04T17:51:42-03:00"
+    },
+    {
+      "path": "analisis.html",
+      "title": "Caso de estudio",
+      "description": "Tema de análisis\n",
+      "author": [],
+      "contents": "\r\n\r\n\r\n\r\n",
+      "last_modified": "2023-10-04T17:51:49-03:00"
     },
     {
       "path": "fuentes.html",
-      "title": "About this site",
-      "description": "Some additional details about the website",
+      "title": "Fuentes",
+      "description": "Origen de la información y referencias",
       "author": [],
       "contents": "\r\nFuentes:\r\n\r\n\r\n\r\n",
-      "last_modified": "2023-10-04T17:26:47-03:00"
+      "last_modified": "2023-10-04T17:51:52-03:00"
     },
     {
       "path": "index.html",
-      "title": "IAUII_FINAL",
-      "description": "Welcome to the website. I hope you enjoy it!\n",
+      "title": "Trabajo Final ---",
+      "description": "Instrumentos de Análisis Urbano II\n",
       "author": [],
       "contents": "\r\n\r\n\r\n\r\n",
-      "last_modified": "2023-10-04T17:26:50-03:00"
+      "last_modified": "2023-10-04T17:53:32-03:00"
     }
   ],
   "collections": []

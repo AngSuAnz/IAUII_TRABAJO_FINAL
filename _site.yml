@@ -5,13 +5,18 @@ description: |
 output_dir: "docs"
 navbar:
   left: 
-    - text: "Inicio"
-      href: index.html
-    - text: "Fuentes"
-      href: fuentes.html
+  - text: "Inicio" 
+    href: index.html
+  - text: "Caso de Estudio" 
+    href: analisis.html
   right:
-    - text: "Info+"
+  - text: "+Info" 
+    menu:
+    - text: General
       href: about.html
-
+    - text: Fuentes
+      href: fuentes.html
       
 output: distill::distill_article
+
+
