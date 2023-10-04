@@ -10,7 +10,4 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```
 
-```{r, include=FALSE}
-#rmarkdown::render_site() 
-```
 
