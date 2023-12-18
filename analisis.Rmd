@@ -64,7 +64,7 @@ BUENOS AIRES EN 15 MINUTOS </br>
 
 
 <h3>
-  CONTEXTO ACTUAL </br>
+  LA PREGUNTA </br>
   <small class="text-muted"> |  Nacional </small>
 </h3>
 
@@ -183,6 +183,17 @@ conteo_interno = function(db, nombre_variable){
 }
 ```
 
+#BBOX OSMDATA
+```{r}
+#bbox_caba <- getbb("Ciudad Autónoma de Buenos Aires, Argentina")
+
+#busquedas_caba <- opq(bbox_caba)
+
+#busquedas_caba <- add_osm_feature(busquedas_caba, key = "leisure", value = c("park", "garden", "nature_reserve"))
+
+#busquedas_caba <- osmdata_sf(busquedas_caba)
+```
+
 # SEGURIDAD
 ```{r}
 #TOMO CADA BASE DE DATOS, LA INTERSECTO Y HAGO EL CONTEO:
@@ -291,15 +302,97 @@ r_jubilados = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/m
   filter(!is.na(lat)) %>% 
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
   conteo_interno("n_r_jubilados") 
+
+#r_bailables = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/agencia-gubernamental-de-control/locales-bailables/locales_bailables.xlsx")%>% 
+  #clean_names() %>% 
+  #mutate(direccion = paste0(domicilio," ",no, ", Ciudad de Buenos Aires, Argentina")) %>% 
+  #filter(!grepl("VENCI|SUSP|BAJA|DENE", estado)) %>% 
+  #filter(!is.na(estado)) 
+
+#evito problemas por cortes en la busqueda y después guardo el archivo y desactivo esta parte del código porque se demora mucho
+#Sys.sleep(1)
+
+#r_bailables = r_bailables %>%
+  #geocode(address = direccion, method = "osm")
+
+#r_bailables = r_bailables %>%
+  #filter(!is.na(lat)) %>% 
+  #st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  #st_write("data/r_bailables.geojson")
+
+r_bailables =  st_read("data/r_bailables.geojson") %>% 
+  conteo_interno("n_r_bailables") 
 ```
+
+#EDUCACION
+```{r}
+e_jardinesc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/jardines-comunitarios/jardin_comunitario.geojson") %>% 
+  conteo_interno("n_e_jardinesc")
+
+e_primerainfancia = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-primera-infancia/centros-de-primera-infancia.geojson") %>% 
+  conteo_interno("n_e_primerainfancia")
+
+e_desarrolloi = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-desarrollo-infantil/centros-de-desarrollo-infantil.geojson") %>% 
+  conteo_interno("n_e_desarrolloi")
+
+e_educativos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/establecimientos-educativos/establecimientos_educativos_WGS84.geojson") %>% 
+  conteo_interno("n_e_educativos")
+
+e_universidades = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/universidades/universidades.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_e_universidades") 
+
+e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/bibliotecas/bibliotecas.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_e_bibliotecas") 
+
+```
+
+#ATENCION ADMINISTRATIVA CIVIL
+```{r}
+#OBTENGO LOS PUNTOS DE ATENCION CIUDADANA BUSCANDO LAS DIRECCIONES QUE FIGURAN EN LA BASE DE DATOS
+a_puntos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-gobierno/puntos-atencion/puntos-de-atencion.xlsx") %>% 
+  mutate(direccion = paste0(calle_nombre," ",calle_altura, ", Ciudad de Buenos Aires, Argentina"))
+
+#evito problemas por cortes en la busqueda y después guardo el archivo y desactivo esta parte del código porque se demora mucho
+#Sys.sleep(1)
+
+#a_puntos = a_puntos %>%
+#  geocode(address = direccion, method = "osm")
+
+#st_write(a_puntos, "data/a_puntos.geojson")
+
+a_puntos = st_read("data/a_puntos.geojson") %>% 
+  filter(!is.na(lat)) %>% 
+  st_drop_geometry(geometry) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_a_puntos")
+
+
+a_vtv = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/verificacion-tecnica-vehicular-vtv/verificacion-tecnica-vehicular.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_a_vtv")
+
+
+```
+
+
+
 
 #UNIFICADO
 ```{r}
+#PARA ELIMINAR OBJETOS DE MI ENTORNO QUE NO USÉ AL FINAL
+#rm(a_rcivil)
+
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
 bases_de_datos <- ls() %>%
-  grep("^r_|^se_|^s_", ., value = TRUE) %>%
+  grep("^r_|^se_|^s_|^e_", ., value = TRUE) %>%
   lapply(get)
 
-# Realizo los left_join iterativos
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
 isocronas_datos <- bases_de_datos %>% 
   reduce(function(df1, df2) {
     left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
@@ -307,7 +400,6 @@ isocronas_datos <- bases_de_datos %>%
   }, .init = isocronas_barrios)
 ```
 
-#EDUCACION
 
 #PONDERACIONES
 Si bien la rigurosidad metodologia de estas ponderaciones es practicamente inexistente debido a que no tiene un respaldo teorico, sino que se basa en mi subjetividad, la idea es plantear al menos algun tipo de diferencia en el peso de cada subitem de los indices para reconocer que no deberían ser iguales; y dejar asentada una forma de calcularlo.
