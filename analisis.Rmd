@@ -189,71 +189,128 @@ conteo_interno = function(db, nombre_variable){
 
 se_comisarias = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/comisarias-policia-ciudad/comisarias-policia-de-la-ciudad.geojson") %>% 
   select(nombre, nom_2,tipo) %>% 
-  conteo_interno("n_comisarias")
+  conteo_interno("n_se_comisarias")
   
   
 se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/cuarteles-destacamentos-bomberos/cuarteles-y-destacamentos-de-bomberos-de-policia-federal-argentina.csv",
                     stringsAsFactors = T) %>% 
   select(long,lat,dcia,gestion) %>% 
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  conteo_interno("n_bomberos")
+  conteo_interno("n_se_bomberos")
 
 ```
 
 
-# CULTURA Y RECREACION
+# SALUD
 ```{r}
-r_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% 
-  conteo_interno("n_culturales")
-  
+s_ufebriles = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/ufus/ubicacion-ufus.geojson")  %>% 
+  conteo_interno("n_s_ufebriles")
 
-r_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/polideportivos/polideportivos.geojson")  %>% 
-  conteo_interno("n_polideportivos")
+s_cimujer = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-integrales-mujer/centros-integrales-de-la-mujer.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_s_cimujer")
 
-r_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
-  conteo_interno("n_clubes")
+s_hospitales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/hospitales/hospitales.geojson")  %>% 
+  conteo_interno("n_s_hospitales")
+
+s_cdinfantil = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-desarrollo-infantil/centros-de-desarrollo-infantil.geojson")  %>% 
+  conteo_interno("n_s_cdinfantil")
+
+s_farmacias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/farmacias/farmacias.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_s_farmacias")
+
+s_privados = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/centros-salud-privados/centros-de-salud-privados.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_s_privados")
+
+s_vinfantil = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/vacunatorios-infantiles/vacunatorios_infantiles_WGS84.geojson")  %>% 
+  conteo_interno("n_s_vinfantil")
+
+s_cesac = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/centros-salud-accion-comunitaria-cesac/centros_de_salud_nivel_1_BADATA_WGS84.geojson")  %>% 
+  conteo_interno("n_s_cesac")
+
+s_vmayores = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/vacunatorios-adultos-mayores/vacunatorios-adultos-mayores.geojson")  %>% 
+  conteo_interno("n_s_vmayores")
+
+s_barriales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/centros-medicos-barriales/centros-medicos-barriales.geojson")  %>% 
+  conteo_interno("n_s_barriales")
+
+s_geriatricos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/geriatricos/geriatricos.geojson")  %>% 
+  conteo_interno("n_s_geriatricos")
+
+s_esaludables = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/estaciones-saludables/estaciones-saludables.geojson")  %>% 
+  conteo_interno("n_s_esaludables")
+
+s_veterinarias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/agencia-de-proteccion-ambiental/centros-atencion-veterinaria/centros-de-atencion-veterinaria.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_s_veterinarias")
 
 ```
 
 # CULTURA Y RECREACION
 ```{r}
-r_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% 
-  conteo_interno("n_culturales")
+r_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% conteo_interno("n_r_culturales")
   
 
 r_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/polideportivos/polideportivos.geojson")  %>% 
-  conteo_interno("n_polideportivos")
+  conteo_interno("n_r_polideportivos")
 
 r_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
-  conteo_interno("n_clubes")
+  conteo_interno("n_r_clubes")
 
 r_jugotecas = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
-  conteo_interno("n_jugotecas")
-
-r_bailables = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/agencia-gubernamental-de-control/locales-bailables/locales_bailables.xlsx",
-                    stringsAsFactors = T) #%>% 
-  #st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  #conteo_interno("n_bomberos")
+  conteo_interno("n_r_jugotecas")
 
 r_skate = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/pistas-skate/pistas-de-skate.csv",
                     stringsAsFactors = T) %>% 
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  conteo_interno("n_bomberos")
+  conteo_interno("n_r_skate")
+
+r_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-espacio-publico-e-higiene-urbana/monumentos/monumentos.xlsx") %>% 
+  filter(!is.na(LATITUD)) %>% 
+  st_as_sf(coords = c("LONGITUD", "LATITUD"), crs = 4326) %>% 
+  conteo_interno("n_r_monumentos") %>% 
+  filter(!is.na(BARRIO))
+
+r_estadios = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/estadios/estadios.xlsx") %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_r_estadios") 
+
+r_peatonal = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
+  conteo_interno("n_r_peatonal")
+
+r_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ente-de-turismo/oferta-establecimientos-gastronomicos/oferta-gastronomica.geojson") %>% 
+  conteo_interno("n_r_gastronomicos")
+
+r_jubilados = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-jubilados/centros-de-jubilados-reempadronados.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_r_jubilados") 
 ```
 
 #UNIFICADO
 ```{r}
-isocronas_datos = isocronas_barrios %>% 
-  select(BARRIO) %>% 
-  left_join(st_drop_geometry(se_comisarias), by="BARRIO") %>% 
-  left_join(st_drop_geometry(se_bomberos), by="BARRIO") %>% 
-  left_join(st_drop_geometry(r_culturales), by="BARRIO") %>%
-  left_join(st_drop_geometry(r_polideportivos), by="BARRIO") %>%
-  left_join(st_drop_geometry(r_clubes), by="BARRIO") %>%
-  replace(is.na(.), 0)
+bases_de_datos <- ls() %>%
+  grep("^r_|^se_|^s_", ., value = TRUE) %>%
+  lapply(get)
+
+# Realizo los left_join iterativos
+isocronas_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = isocronas_barrios)
 ```
 
 #EDUCACION
+
+#PONDERACIONES
+Si bien la rigurosidad metodologia de estas ponderaciones es practicamente inexistente debido a que no tiene un respaldo teorico, sino que se basa en mi subjetividad, la idea es plantear al menos algun tipo de diferencia en el peso de cada subitem de los indices para reconocer que no deberían ser iguales; y dejar asentada una forma de calcularlo.
 
 
 
