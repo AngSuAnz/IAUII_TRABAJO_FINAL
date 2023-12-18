@@ -5,9 +5,298 @@ description: |
 site: distill::distill_website
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+# LIBRERIAS
+
+```{r, include=FALSE}
+options(scipen = 999)
+
+knitr::opts_chunk$set(echo = TRUE)
+library(bootstrap)
+library(bslib)
+library(data.table)
+library(dplyr)
+library(DT)
+library(geofacet)
+library(ggmap)
+library(ggplot2)
+library(googlesheets4)
+library(installr)
+library(janitor)
+library(knitr)
+library(leaflet)
+library(leaflet.extras)
+library(lubridate)
+library(lwgeom)
+library(maptools)
+library(openxlsx)
+library(osmdata)
+library(osrm)
+library(plotly)
+library(purrr)
+library(RColorBrewer)
+library(readxl)
+library(readr)
+library(rgdal)
+library(rgeos)
+library(rmarkdown)
+library(rsconnect)
+library(scales)
+library(sf)
+#library(shiny)
+#library(shinydashboard)
+#library(shinyjs)
+library(sodium)
+library(sp)
+library(stringr)
+library(tidygeocoder)
+library(tidyr)
+library(tidyverse)
+library(viridis)
+library(viridisLite)
+library(vroom)
+library(writexl)
+```
+
+<h1>
+BUENOS AIRES EN 15 MINUTOS </br>
+  <small class="text-muted"> || Hipótesis </small>
+</h1>
+
+
+<h3>
+  CONTEXTO ACTUAL </br>
+  <small class="text-muted"> |  Nacional </small>
+</h3>
+
+**HIPÓTESIS**
+
+
+
+#GOOGLE SHEET
+```{r}
+gs4_deauth() # Eliminar auth interactivo (link publico)
+variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
 
 ```
 
+
+#BARRIOS
+
+```{r}
+barrios <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/barrios/barrios.geojson") %>% 
+  mutate(AREAKM2 = round((AREA/1000000),2)) %>% 
+  st_transform(4326)
+
+
+centroides = st_centroid(barrios) %>% 
+             st_transform(4326)
+
+puntos_aleatorios <- rowwise(barrios) %>%
+  mutate(punto_aleatorio = st_sample(geometry, 1, type = "random")) %>% 
+  st_drop_geometry(geometry) %>% 
+  st_as_sf()
+```
+#ISOCRONAS
+
+
+```{r}
+#ESTA SECCIÓN VOY A EJECUTARLA UNA SOLA VEZ Y GUARDO EL OBJETO PORQUE TARDA MUCHO:
+# itero en cada punto para hacer las isocronas
+#lista_isocronas <- lapply(puntos_aleatorios$punto_aleatorio, function(point) {
+#  osrmIsochrone(loc = st_coordinates(point),
+#                breaks = seq(from = 0, to = 15, by = 15),
+#                res = 40,
+#                osrm.profile = "foot")
+#})
+
+# Combino las isocronas
+#isocronas_bind <- do.call(rbind, lista_isocronas)
+
+#st_write(isocronas_bind, "data/isocronas_aleatorios.geojson")
+
+#Ahora simplemente llamo la base que armé y le uno los nombres por orden de las observaciones
+isocronas_barrios = st_read("data/isocronas_aleatorios.geojson") %>% 
+                    st_transform(4326) %>% 
+                    cbind(st_drop_geometry(centroides)) %>% 
+                    st_make_valid()
+
+```
+
+# MAPA
+
+pal_tenencia <- colorFactor(
+  palette = brewer.pal(10, "OrRd"), # Cambia la paleta y el número de colores según tu preferencia
+  domain = tenencia_prov$inquilinos
+)
+
+```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+
+
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Barrios CABA", "Centroides","Puntos Aleatorios","Puntos Aleatorios2","Isocrona"))%>% 
+  
+  addPolygons(data= barrios,
+              color = "black",
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = "white",
+              fillOpacity = 0.5,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> <strong> ÁREA: </strong>", AREAKM2, "km2"),
+              group = "Barrios CABA") %>% 
+  
+    addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "green",
+              weight = 0.5,
+              color = "green",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios")  %>% 
+
+  addPolygons(data= isocronas_barrios,
+              color = "darkgreen",
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = "darkgreen",
+              fillOpacity = 0.5,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Isocrona")
+
+```
+
+```{r}
+isocronas_inter = isocronas_barrios %>% 
+                          select(BARRIO)
+
+conteo_interno = function(db, nombre_variable){
+  db %>% 
+  st_transform(4326) %>% 
+  st_intersection(isocronas_inter) %>%
+  group_by(BARRIO) %>%
+  summarise(!!nombre_variable := n())
+}
+```
+
+# SEGURIDAD
+```{r}
+#TOMO CADA BASE DE DATOS, LA INTERSECTO Y HAGO EL CONTEO:
+
+se_comisarias = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/comisarias-policia-ciudad/comisarias-policia-de-la-ciudad.geojson") %>% 
+  select(nombre, nom_2,tipo) %>% 
+  conteo_interno("n_comisarias")
+  
+  
+se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/cuarteles-destacamentos-bomberos/cuarteles-y-destacamentos-de-bomberos-de-policia-federal-argentina.csv",
+                    stringsAsFactors = T) %>% 
+  select(long,lat,dcia,gestion) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_bomberos")
+
+```
+
+
+# CULTURA Y RECREACION
+```{r}
+r_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% 
+  conteo_interno("n_culturales")
+  
+
+r_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/polideportivos/polideportivos.geojson")  %>% 
+  conteo_interno("n_polideportivos")
+
+r_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
+  conteo_interno("n_clubes")
+
+```
+
+# CULTURA Y RECREACION
+```{r}
+r_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% 
+  conteo_interno("n_culturales")
+  
+
+r_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/polideportivos/polideportivos.geojson")  %>% 
+  conteo_interno("n_polideportivos")
+
+r_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
+  conteo_interno("n_clubes")
+
+r_jugotecas = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
+  conteo_interno("n_jugotecas")
+
+r_bailables = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/agencia-gubernamental-de-control/locales-bailables/locales_bailables.xlsx",
+                    stringsAsFactors = T) #%>% 
+  #st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  #conteo_interno("n_bomberos")
+
+r_skate = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/pistas-skate/pistas-de-skate.csv",
+                    stringsAsFactors = T) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_bomberos")
+```
+
+#UNIFICADO
+```{r}
+isocronas_datos = isocronas_barrios %>% 
+  select(BARRIO) %>% 
+  left_join(st_drop_geometry(se_comisarias), by="BARRIO") %>% 
+  left_join(st_drop_geometry(se_bomberos), by="BARRIO") %>% 
+  left_join(st_drop_geometry(r_culturales), by="BARRIO") %>%
+  left_join(st_drop_geometry(r_polideportivos), by="BARRIO") %>%
+  left_join(st_drop_geometry(r_clubes), by="BARRIO") %>%
+  replace(is.na(.), 0)
+```
+
+#EDUCACION
+
+
+
+#MAPA con puntos
+
+```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+
+
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Barrios CABA", "Comisarias", "Isocronaa"))%>% 
+  
+  addPolygons(data= barrios,
+              color = "black",
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = "white",
+              fillOpacity = 0.5,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> <strong> ÁREA: </strong>", AREAKM2, "km2"),
+              group = "Barrios CABA") %>% 
+  
+  addCircleMarkers(data=comisarias_dentro,
+              fillColor = "purple",
+              weight = 0.5,
+              color = "purple",
+              fillOpacity = 0.5,
+              radius = 2,
+              #popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Comisarias")%>% 
+
+  addPolygons(data= isocronas_barrios,
+              color = "darkgreen",
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = "darkgreen",
+              fillOpacity = 0.5,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Isocronas")
+
+```
 

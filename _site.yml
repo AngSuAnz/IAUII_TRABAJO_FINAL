@@ -4,6 +4,10 @@ description: |
   IAUII_FINAL
 output_dir: "docs"
 navbar:
+  type: inverse
+  logo:
+    image: https://www.utdt.edu/Images/ui2014/logo.png
+    href: https://www.utdt.edu
   left: 
   - text: "Inicio" 
     href: index.html
@@ -16,7 +20,10 @@ navbar:
       href: about.html
     - text: Fuentes
       href: fuentes.html
-      
+  - icon: fab fa-github
+    href: https://github.com/AngSuAnz/IAUII_TRABAJO_FINAL
+  - search: true
 output: distill::distill_article
+
 
 
