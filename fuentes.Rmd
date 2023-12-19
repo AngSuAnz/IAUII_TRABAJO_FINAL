@@ -6,7 +6,87 @@ description: |
 
 Fuentes:
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+```{r librerias, include=FALSE}
+options(scipen = 999)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(bootstrap)
+library(bslib)
+library(data.table)
+library(dplyr)
+library(DT)
+library(geofacet)
+library(ggmap)
+library(ggplot2)
+library(googlesheets4)
+library(installr)
+library(janitor)
+library(knitr)
+library(leaflet)
+library(leaflet.extras)
+library(lubridate)
+library(lwgeom)
+library(maptools)
+library(openxlsx)
+library(osmdata)
+library(osrm)
+library(plotly)
+library(purrr)
+library(RColorBrewer)
+library(readxl)
+library(readr)
+library(rgdal)
+library(rgeos)
+library(rmarkdown)
+library(rsconnect)
+library(scales)
+library(sf)
+#library(shiny)
+#library(shinydashboard)
+#library(shinyjs)
+library(sodium)
+library(sp)
+library(stringr)
+library(tidygeocoder)
+library(tidyr)
+library(tidyverse)
+library(viridis)
+library(viridisLite)
+library(vroom)
+library(writexl)
 ```
 
+Aclaración inicial: me embarqué muy contenta en esta empresa y con medio tp ya desarrollado encontré este [hermoso trabajo](https://buenosaires.gob.ar/publicaciones-de-informacion-territorial/indice-de-cobertura-de-las-necesidades-de-la-vida) que básicamente hace lo que yo quería, pero mil veces mejor, así que lo tomé como referencia en algunos puntos, pero me propuse de todas maneras seguir construyendo mi propio camino.
+
+<h3>
+  Bases de Datos </br>
+  <small class="text-muted"> |  Identificación, fuentes y observaciones </small>
+</h3>
+
+```{r cuadro_bases_de_datos,echo = FALSE, warning=FALSE}
+gs4_deauth() # Eliminar auth interactivo (link publico)
+variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
+
+
+datatable(variables, 
+          style = 'bootstrap', 
+          class = 'cell-border stripe',
+          options = list(
+            searching = FALSE,
+            rownames = FALSE,
+            pageLength = 10,
+            dom = 't',
+            scrollY = '300px',
+            language = list(zeroRecords = "No existen datos para los requerimientos seleccionados"),
+            #autoWidth = TRUE,
+      columnDefs = list(
+        list(targets = 0, visible = FALSE)
+          )))
+
+```
+
+<h3>
+  Bibliografía </br>
+  <small class="text-muted"> |  Textos y videos </small>
+</h3>
