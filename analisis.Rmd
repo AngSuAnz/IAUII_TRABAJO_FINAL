@@ -1,16 +1,15 @@
 ---
-title: "Investigación"
+title: "CABA Vecinal"
 description: |
-  Buenos Aires Vecinal
+  La Ciudad Autónoma de Buenos Aires en 15 minutos
 site: distill::distill_website
 ---
 
-# LIBRERIAS
-
-```{r, include=FALSE}
+```{r librerias, include=FALSE}
 options(scipen = 999)
 
 knitr::opts_chunk$set(echo = TRUE)
+
 library(bootstrap)
 library(bslib)
 library(data.table)
@@ -57,36 +56,32 @@ library(vroom)
 library(writexl)
 ```
 
-<h1>
-BUENOS AIRES EN 15 MINUTOS </br>
-  <small class="text-muted"> || Hipótesis </small>
-</h1>
-
 
 <h3>
   LA PREGUNTA </br>
-  <small class="text-muted"> |  Nacional </small>
+  <small class="text-muted"> |  Origen de la investigación </small>
 </h3>
 
-**HIPÓTESIS**
+La ya conocida teoría de las "Ciudades de 15 minutos", término acuñado por Carlos Moreno [(2016)](https://www.latribune.fr/regions/smart-cities/la-tribune-de-carlos-moreno/la-ville-du-quart-d-heure-pour-un-nouveau-chrono-urbanisme-604358.html), cuenta ya con 7 años de "popularidad", en los que ha generado un intenso debate con partidarios y detractores apasionados.
 
+Si bien la teoría y los conceptos que presenta no son nuevos, ya que han profundamente trabajados previamente por Clarence Perry [(1929)](https://www.taylorfrancis.com/chapters/edit/10.4324/9780429261732-66/neighborhood-unit-clarence-perry), Jane Jacobs [(1961)](https://books.google.com.ar/books/about/Muerte_y_vida_de_las_grandes_ciudades.html?id=fWQeEAAAQBAJ&source=kp_book_description&redir_esc=y), Carmen Belloni [(1984)](https://pascal-francis.inist.fr/vibad/index.php?action=getRecordDetail&idt=6512313),y Sandra Bonfiglioli [(1997)](https://journals.sagepub.com/doi/10.1177/102425899700300405), entre otros; la temática ha recobrado relevancia en el contexto actual luego del gran impacto que ha tenido la pandemia por COVID 19.
 
+Por esa razón, este estudio se propone analizar los datos disponibles de la Ciudad Autónoma de Buenos Aires para evaluar en qué medida puede esta ser considerada una "ciudad de 15 minutos", una ciudad "Vecinal".
 
-#BASES DE DATOS
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
-gs4_deauth() # Eliminar auth interactivo (link publico)
-variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
+(Pequeña aclaración: me embarqué muy contenta en esta empresa y con medio tp ya desarrollado encontré este [hermoso trabajo](https://buenosaires.gob.ar/publicaciones-de-informacion-territorial/indice-de-cobertura-de-las-necesidades-de-la-vida) que básicamente hace lo que yo quería, pero mil veces mejor, así que lo tomé como referencia en algunos puntos, pero me propuse de todas maneras seguir construyendo mi propio camino)
 
-```
+<h3>
+  INICIO </br>
+  <small class="text-muted"> |  Metodología de investigación </small>
+</h3>
 
+Para llevar esto a cabo, conformé una muestra territorial, tomando un punto aleatorio dentro de cada barrio de la Ciudad de Buenos Aires.
+A partir de estos puntos, construí una isocrona definida a 15minutos a pie y tomé esas porciones del territorio como las áreas a estudiar.
 
-#BARRIOS
-
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r barrios_puntos, warning=FALSE, include=FALSE}
 barrios <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/barrios/barrios.geojson") %>% 
   mutate(AREAKM2 = round((AREA/1000000),2)) %>% 
   st_transform(4326)
-
 
 centroides = st_centroid(barrios) %>% 
              st_transform(4326)
@@ -96,10 +91,8 @@ puntos_aleatorios <- rowwise(barrios) %>%
   st_drop_geometry(geometry) %>% 
   st_as_sf()
 ```
-#ISOCRONAS
 
-
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r construccion_isocronas, warning=FALSE, include=FALSE}
 #ESTA SECCIÓN VOY A EJECUTARLA UNA SOLA VEZ Y GUARDO EL OBJETO PORQUE TARDA MUCHO:
 # itero en cada punto para hacer las isocronas
 #lista_isocronas <- lapply(puntos_aleatorios$punto_aleatorio, function(point) {
@@ -125,14 +118,14 @@ isocronas_inter = isocronas_barrios %>%
                           select(BARRIO)
 ```
 
-# MAPA
+<h3>
+  ISOCRONAS </br>
+  <small class="text-muted"> |  Visualización </small>
+</h3>
 
-pal_tenencia <- colorFactor(
-  palette = brewer.pal(10, "OrRd"), # Cambia la paleta y el número de colores según tu preferencia
-  domain = tenencia_prov$inquilinos
-)
+Resultado de las isocronas en relación con los puntos y el perímetro de cada barrio:
 
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r mapa_isocronas, echo=FALSE, warning=FALSE}
 
 leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
   addTiles() %>%
@@ -141,7 +134,7 @@ leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
   addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
   addLayersControl(
     baseGroups = c("OSM","Satelite"), 
-    overlayGroups = c("Barrios CABA", "Centroides","Puntos Aleatorios","Puntos Aleatorios2","Isocrona"))%>% 
+    overlayGroups = c("Barrios CABA","Puntos Aleatorios","Isocrona"))%>% 
   
   addPolygons(data= barrios,
               color = "black",
@@ -171,10 +164,33 @@ leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
               group = "Isocrona")
 
 ```
+Si bien en un planteo inicial había tomdo como origen de las isocronas los centroides de los barrios, posteriormente modifiqué esto para que la muestra pudiese representar las condiciones en las periferias y superposiciones entre geometrías, ya que son también condiciones reales que se dan dentro de la ciudad, y deben ser contempladas.
 
-#BBOX Y FUNCIONES
+<h3>
+  Necesidades Cotidianas </br>
+  <small class="text-muted"> |  Ejes y Variables </small>
+</h3>
 
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+Con el territorio definido, comencé la busqueda de bases de datos geográficos disponibles y/o construibles para representar los distintos ejes y variables con los que se pueden representar las necesidades cotidianas que requieren esta proximidad.
+
+```{r cuadro_bases_de_datos,echo = FALSE, warning=FALSE}
+gs4_deauth() # Eliminar auth interactivo (link publico)
+variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
+
+datatable(variables, style = 'bootstrap', class = 'cell-border stripe', 
+          options = list(
+      width = "150%",
+      searching = FALSE,
+      rownames = FALSE,
+      pageLength = -1,
+      bPaginate = FALSE,
+      dom = 'btp',
+      language = list(zeroRecords = "No existen datos para los requerimientos seleccionados"),
+      autoWidth = TRUE))
+
+```
+
+```{r, echo = FALSE, warning = FALSE, include=FALSE}
 conteo_interno = function(db, nombre_variable){
   db %>% 
   st_transform(4326) %>% 
@@ -198,7 +214,7 @@ buscar_osm <- function(nombre_objeto, clave) {
 ```
 
 # SEGURIDAD
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r, echo = FALSE, warning = FALSE, include=FALSE}
 #TOMO CADA BASE DE DATOS, LA INTERSECTO Y HAGO EL CONTEO:
 
 se_comisarias = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/comisarias-policia-ciudad/comisarias-policia-de-la-ciudad.geojson") %>% 
@@ -216,7 +232,7 @@ se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/mi
 
 
 # SALUD
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r, echo = FALSE, warning = FALSE, include=FALSE}
 s_ufebriles = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/ufus/ubicacion-ufus.geojson")  %>% 
   conteo_interno("n_s_ufebriles")
 
@@ -251,7 +267,8 @@ s_vmayores = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/mini
   conteo_interno("n_s_vmayores")
 
 s_barriales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/centros-medicos-barriales/centros-medicos-barriales.geojson")  %>% 
-  conteo_interno("n_s_barriales")
+  conteo_interno("n_s_barriales") %>% 
+  mutate(BARRIO = toupper(BARRIO))
 
 s_geriatricos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/geriatricos/geriatricos.geojson")  %>% 
   conteo_interno("n_s_geriatricos")
@@ -267,7 +284,7 @@ s_veterinarias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/dataset
 ```
 
 # CULTURA Y RECREACION
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r, echo = FALSE, warning = FALSE, include=FALSE}
 r_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% conteo_interno("n_r_culturales")
 
 r_jugotecas = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
@@ -319,7 +336,7 @@ r_bailables =  st_read("data/r_bailables.geojson") %>%
 
 #DEPORTES
 
-```{r}
+```{r, include=FALSE}
 d_skate = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/pistas-skate/pistas-de-skate.csv",
                     stringsAsFactors = T) %>% 
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -334,7 +351,7 @@ d_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/viceje
 
 
 #EDUCACION
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r, echo = FALSE, warning = FALSE, include=FALSE }
 e_jardinesc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/jardines-comunitarios/jardin_comunitario.geojson") %>% 
   conteo_interno("n_e_jardinesc")
 
@@ -360,7 +377,7 @@ e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets
 ```
 
 #TRAMITES
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r, echo = FALSE, warning = FALSE, include=FALSE }
 #OBTENGO LOS PUNTOS DE ATENCION CIUDADANA BUSCANDO LAS DIRECCIONES QUE FIGURAN EN LA BASE DE DATOS:
 
 #t_puntos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-gobierno/puntos-atencion/puntos-de-atencion.xlsx") %>% 
@@ -401,9 +418,11 @@ t_bancosyc = rbind(t_bancos,t_cajeros) %>%
   filter(!duplicated(geos)) %>% 
   conteo_interno("n_t_bancosyc")
 
+rm(t_bancos,t_cajeros)
 ```
+
 #AUTOABASTECIMIENTO
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r, echo = FALSE, warning = FALSE, include=FALSE }
 #HAGO UNA BUQUEDA DE LOS COMERCIOS CON OSM, GUARDO LA NUEVA BASE Y EDSHABILITO EL PROCESO PARA NO REPETIRLO:
 
 #buscar_osm("a_comercio", "shop")
@@ -460,7 +479,7 @@ a_eess = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/minist
 
 #TRANSPORTE
 
-```{r, echo = FALSE, warning = FALSE, out.width = "100%"}
+```{r, echo = FALSE, warning = FALSE, include=FALSE }
 tp_colectivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/colectivos-paradas/paradas-de-colectivo.geojson") %>% 
   conteo_interno("n_tp_colectivos")
 
@@ -484,7 +503,7 @@ tp_garagem = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/tr
 ```
 
 #MEDIO AMBIENTE
-```{r}
+```{r, include=FALSE}
 #mb_arbolado = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/atencion-ciudadana/arbolado-publico-lineal/arbolado-publico-lineal-2017-2018.geojson") %>% 
 #  conteo_interno("n_tp_arbolado")
 
@@ -493,12 +512,12 @@ mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secreta
   st_centroid() %>% 
   #hacer una ponderacion por tipo de espacio verde
   mutate(clasificac = as.factor(clasificac)) %>% 
-  conteo_interno(n_mb_eevv)
+  conteo_interno("n_mb_eevv")
 ```
 
 
 #UNIFICADO
-```{r}
+```{r, include=FALSE}
 #PARA ELIMINAR OBJETOS DE MI ENTORNO QUE NO USÉ AL FINAL
 #rm(a_rcivil)
 
