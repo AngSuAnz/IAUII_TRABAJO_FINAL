@@ -16,10 +16,8 @@ navbar:
   right:
   - text: "+Info" 
     menu:
-    - text: General
-      href: about.html
     - text: Fuentes
-      href: fuentes.html
+      href: about.html
   - icon: fab fa-github
     href: https://github.com/AngSuAnz/IAUII_TRABAJO_FINAL
   - search: true
