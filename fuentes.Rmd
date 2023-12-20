@@ -4,9 +4,7 @@ description: |
   Origen de la información y referencias
 ---
 
-Fuentes:
-
-```{r librerias, include=FALSE}
+```{r, include=FALSE}
 options(scipen = 999)
 
 knitr::opts_chunk$set(echo = TRUE)
@@ -64,12 +62,12 @@ Aclaración inicial: me embarqué muy contenta en esta empresa y con medio tp ya
   <small class="text-muted"> |  Identificación, fuentes y observaciones </small>
 </h3>
 
-```{r cuadro_bases_de_datos,echo = FALSE, warning=FALSE}
+```{r,echo = FALSE, warning=FALSE}
 gs4_deauth() # Eliminar auth interactivo (link publico)
-variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
+variable = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
 
 
-datatable(variables, 
+datatable(variable, 
           style = 'bootstrap', 
           class = 'cell-border stripe',
           options = list(

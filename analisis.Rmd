@@ -83,34 +83,60 @@ A partir de estos puntos, construí una isocrona definida a 15minutos a pie y to
 ```{r barrios_puntos, warning=FALSE, include=FALSE}
 barrios <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/barrios/barrios.geojson") %>% 
   mutate(AREAKM2 = round((AREA/1000000),2)) %>% 
-  st_transform(4326)
+  st_transform(4326)%>%
+  arrange(BARRIO)
+
+mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secretaria-de-desarrollo-urbano/espacios-verdes/espacio_verde_publico.geojson") %>% 
+  st_make_valid() 
+
+#eevv_unido = st_union(mb_eevv)
 
 centroides = st_centroid(barrios) %>% 
              st_transform(4326)
 
-puntos_aleatorios <- rowwise(barrios) %>%
-  mutate(punto_aleatorio = st_sample(geometry, 1, type = "random")) %>% 
-  st_drop_geometry(geometry) %>% 
-  st_as_sf()
+# RESTO LAS GEOMETRIAS DE ESPACIOS VERDES A LOS BARRIOS PARA QUE CUANDO GENERE LOS PUNTOS ALEATORIOS, NO CAIGAN AHÍ (Restar geometria2 de geometria1):
+
+#barrios_sverde = st_difference(barrios, eevv_unido) 
+
+#LO GUARDO Y LO LLAMO PARA NO REPETIR:
+
+#barrios_sverde = st_read("data/barrios_sverde.geojson")
+
+#GENERO Y GUARDO LOS PTOS ALEATORIOS PORQUE SINO CADA VEZ QUE CORRO EL CODIGO, SON NUEVOS:
+
+#puntos_aleatoriossv <- rowwise(barrios_sverde) %>%
+#  mutate(punto_aleatorio = st_sample(geometry, 1, type = "random")) %>% 
+#  st_drop_geometry(geometry) %>% 
+#  st_as_sf()
+
+#st_write(puntos_aleatoriossv, "data/puntos_aleatoriossvk.geojson")
+
+puntos_aleatorios = st_read("data/nuevos_puntos_finalisimo.geojson")
+
 ```
 
+
 ```{r construccion_isocronas, warning=FALSE, include=FALSE}
-#ESTA SECCIÓN VOY A EJECUTARLA UNA SOLA VEZ Y GUARDO EL OBJETO PORQUE TARDA MUCHO:
-# itero en cada punto para hacer las isocronas
-#lista_isocronas <- lapply(puntos_aleatorios$punto_aleatorio, function(point) {
+
+#ISOCRONAS PARA PUNTOS ALEATORIOS EN BARRIOS DESCONTANDO ESPACIOS VERDES:
+#ESTA SECCIÓN VOY A EJECUTARLA UNA SOLA VEZ Y GUARDO EL OBJETO PORQUE TARDA MUCHO (itero en cada punto para hacer las isocronas):
+
+#lista_isocronassv <- lapply(puntos_aleatorio$geometry, function(point) {
 #  osrmIsochrone(loc = st_coordinates(point),
 #                breaks = seq(from = 0, to = 15, by = 15),
-#                res = 40,
+#                res = 45,
 #                osrm.profile = "foot")
 #})
 
 # Combino las isocronas
-#isocronas_bind <- do.call(rbind, lista_isocronas)
+#isocronas_bindsv <- do.call(rbind, lista_isocronassv)
 
-#st_write(isocronas_bind, "data/isocronas_aleatorios.geojson")
+#st_write(isocronas_bindsv, "data/isocronas_fnalisimo.geojson")
+
+
 
 #Ahora simplemente llamo la base que armé y le uno los nombres por orden de las observaciones
-isocronas_barrios = st_read("data/isocronas_aleatorios.geojson") %>% 
+isocronas_barrios = st_read("data/isocronas_finalisimo.geojson") %>% 
                     st_transform(4326) %>% 
                     cbind(st_drop_geometry(centroides)) %>% 
                     st_make_valid()
