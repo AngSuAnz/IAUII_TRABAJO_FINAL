@@ -2,6 +2,7 @@
 title: "+Info"
 description: |
   Información adicional
+site: distill::distill_website
 ---
 
 **Docentes** | Juan Pablo Ruiz Nicolini, Pablo Tiscornia

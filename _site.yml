@@ -15,13 +15,11 @@ navbar:
     href: analisis.html
   right:
   - text: "+Info" 
+    href: about.html
     menu:
-    - text: Fuentes
-      href: about.html
+    - text: "Fuentes"
+      href: fuentes.html
   - icon: fab fa-github
     href: https://github.com/AngSuAnz/IAUII_TRABAJO_FINAL
   - search: true
 output: distill::distill_article
-
-
-
