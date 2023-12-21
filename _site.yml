@@ -14,11 +14,12 @@ navbar:
   - text: "Caso de Estudio" 
     href: analisis.html
   right:
-  - text: "+Info" 
-    href: about.html
+  - text: "+Info"
     menu:
     - text: "Fuentes"
       href: fuentes.html
+    - text: "About"
+      href: about.html
   - icon: fab fa-github
     href: https://github.com/AngSuAnz/IAUII_TRABAJO_FINAL
   - search: true

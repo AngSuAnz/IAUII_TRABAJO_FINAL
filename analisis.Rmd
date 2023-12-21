@@ -80,7 +80,7 @@ Por esa razón, este estudio se propone analizar los datos disponibles de la Ciu
 Para llevar esto a cabo, conformé una muestra territorial, tomando un punto aleatorio dentro de cada barrio de la Ciudad de Buenos Aires.
 A partir de estos puntos, construí una isocrona definida a 15minutos a pie y tomé esas porciones del territorio como las áreas a estudiar.
 
-```{r barrios_puntos, warning=FALSE, include=FALSE}
+```{r barrios_puntos, warning=FALSE, hide=TRUE}
 barrios <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/barrios/barrios.geojson") %>% 
   mutate(AREAKM2 = round((AREA/1000000),2)) %>% 
   st_transform(4326)%>%
@@ -116,7 +116,7 @@ puntos_aleatorios = st_read("data/nuevos_puntos_finalisimo.geojson")
 ```
 
 
-```{r construccion_isocronas, warning=FALSE, include=FALSE}
+```{r construccion_isocronas, warning=FALSE, hide=TRUE}
 
 #ISOCRONAS PARA PUNTOS ALEATORIOS EN BARRIOS DESCONTANDO ESPACIOS VERDES:
 #ESTA SECCIÓN VOY A EJECUTARLA UNA SOLA VEZ Y GUARDO EL OBJETO PORQUE TARDA MUCHO (itero en cada punto para hacer las isocronas):
@@ -153,7 +153,7 @@ isocronas_inter = isocronas_barrios %>%
 
 Resultado de las isocronas en relación con los puntos y el perímetro de cada barrio:
 
-```{r mapa_isocronas, echo=FALSE, warning=FALSE}
+```{r mapa_isocronas, echo=FALSE, warning=FALSE, hide=TRUE}
 mapa_isocronas =
 leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
   addTiles() %>%
@@ -203,7 +203,7 @@ Si bien en un planteo inicial había tomdo como origen de las isocronas los cent
 
 Con el territorio definido, comencé la busqueda de bases de datos geográficos disponibles y/o construibles para representar los distintos ejes y variables con los que se pueden representar las necesidades cotidianas que requieren esta proximidad.
 
-```{r cuadro_bases_de_datos,echo = FALSE, warning=FALSE}
+```{r cuadro_bases_de_datos,echo = FALSE, warning=FALSE, hide=TRUE}
 gs4_deauth() # Eliminar auth interactivo (link publico)
 variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
 
@@ -226,7 +226,7 @@ datatable(variables,
 
 ```
 
-```{r bbox_funciones, echo=FALSE, warning=FALSE, include=FALSE}
+```{r bbox_funciones, echo=FALSE, warning=FALSE, hide=TRUE}
 #DEFINO ESTA FUNCION PARA SIMPLIFICAR EL FILTRO DE LAS VARIABLES CON LA GEOMETRIA DE LAS ISOCRONAS Y HACER EL CONTEO
 conteo_interno = function(db, nombre_variable){
   db %>% 
@@ -249,7 +249,8 @@ buscar_osm <- function(nombre_objeto, clave) {
 }
 ```
 
-```{r autoabastecimiento, echo=FALSE, warning=FALSE, include=FALSE}
+
+```{r autoabastecimiento, echo=FALSE, warning=FALSE, hide=TRUE}
 #AUTOABASTECIMIENTO--------------------------------------------------------------
 
 #HAGO UNA BUQUEDA DE LOS COMERCIOS CON OSM, GUARDO LA NUEVA BASE Y EDSHABILITO EL PROCESO PARA NO REPETIRLO:
@@ -279,48 +280,34 @@ a_comercio = st_read("data/a_comercio.geojson")
 a_ferias = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-espacio-publico-e-higiene-urbana/ferias-mercados/ferias-itinerantes-de-abastecimiento-barrial.geojson") %>% 
   conteo_interno("n_a_ferias")
 
-#CONSTRUYO LA BASE DE FLORERIAS CON LAS DIRECCIONES:
-
-#a_florerias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/atencion-ciudadana/puestos-de-flores/puestos-flores.xlsx") %>% 
-#  mutate(direccion = paste0(Calle, " ", Altura, ", Ciudad de Buenos Aires, Argentina"))
-
-#evito problemas por cortes en la busqueda y después guardo el archivo y desactivo esta parte del código porque se demora mucho
-#Sys.sleep(1)
-
-#a_florerias = a_florerias %>%
-#  geocode(address = direccion, method = "osm")
-
-#a_florerias = a_florerias %>% 
-#  filter(!is.na(lat)) %>% 
-#  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-#  conteo_interno("n_a_florerias")
-
-#st_write(a_florerias, "data/a_florerias.geojson")
-
-a_florerias = st_read("data/a_florerias.geojson")
-
 a_eess = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/estaciones-servicio/estaciones_servicio_caba.xlsx") %>% 
   filter(!is.na(lat)) %>% 
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
   conteo_interno("n_a_eess")
 
+a_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ente-de-turismo/oferta-establecimientos-gastronomicos/oferta-gastronomica.geojson") %>% 
+  conteo_interno("n_r_gastronomicos")
+
 ```
 
+```{r cultura, echo=FALSE, warning=FALSE, hide=TRUE}
+# CULTURA------------------------------------------------------------------------
 
-```{r cultura_y_recreacion, echo=FALSE, warning=FALSE, include=FALSE}
 
-# CULTURA Y RECREACION----------------------------------------------------------
+c_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% conteo_interno("n_r_culturales")
 
-r_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% conteo_interno("n_r_culturales")
-
-r_jugotecas = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
-  conteo_interno("n_r_jugotecas")
-
-r_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-espacio-publico-e-higiene-urbana/monumentos/monumentos.xlsx") %>% 
+c_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-espacio-publico-e-higiene-urbana/monumentos/monumentos.xlsx") %>% 
   filter(!is.na(LATITUD)) %>% 
   st_as_sf(coords = c("LONGITUD", "LATITUD"), crs = 4326) %>% 
   conteo_interno("n_r_monumentos") %>% 
   filter(!is.na(BARRIO))
+```
+
+```{r recreacion, echo=FALSE, warning=FALSE, hide=TRUE}
+# RECREACION----------------------------------------------------------
+
+r_jugotecas = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
+  conteo_interno("n_r_jugotecas")
 
 r_estadios = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/estadios/estadios.xlsx") %>% 
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -328,9 +315,6 @@ r_estadios = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vi
 
 r_peatonal = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
   conteo_interno("n_r_peatonal")
-
-r_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ente-de-turismo/oferta-establecimientos-gastronomicos/oferta-gastronomica.geojson") %>% 
-  conteo_interno("n_r_gastronomicos")
 
 r_jubilados = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-jubilados/centros-de-jubilados-reempadronados.xlsx") %>% 
   filter(!is.na(lat)) %>% 
@@ -361,7 +345,7 @@ r_bailables =  st_read("data/r_bailables.geojson") %>%
 ```
 
 
-```{r deportes, include=FALSE}
+```{r deportes, echo=FALSE, warning=FALSE, hide=TRUE}
 #DEPORTES-------------------------------------------------------------------------
 
 d_skate = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/pistas-skate/pistas-de-skate.csv",
@@ -377,7 +361,7 @@ d_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/viceje
 ```
 
 
-```{r educacion, echo=FALSE, warning=FALSE, include=FALSE}
+```{r educacion, echo=FALSE, warning=FALSE, hide=TRUE}
 #EDUCACION----------------------------------------------------------------------
 
 e_jardinesc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/jardines-comunitarios/jardin_comunitario.geojson") %>% 
@@ -405,7 +389,7 @@ e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets
 ```
 
 
-```{r medio_ambiente, include=FALSE}
+```{r medio_ambiente, echo=FALSE, warning=FALSE, hide=TRUE}
 #MEDIO AMBIENTE-------------------------------------------------------------------
 
 #mb_arbolado = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/atencion-ciudadana/arbolado-publico-lineal/arbolado-publico-lineal-2017-2018.geojson") %>% 
@@ -417,10 +401,12 @@ mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secreta
   #hacer una ponderacion por tipo de espacio verde
   mutate(clasificac = as.factor(clasificac)) %>% 
   conteo_interno("n_mb_eevv")
+
+
 ```
 
 
-```{r salud, echo=FALSE, warning=FALSE, include=FALSE}
+```{r salud, echo=FALSE, warning=FALSE, hide=TRUE}
 # SALUD-------------------------------------------------------------------------
 
 s_ufebriles = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/ufus/ubicacion-ufus.geojson")  %>% 
@@ -474,7 +460,7 @@ s_veterinarias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/dataset
 ```
 
 
-```{r seguridad, echo=FALSE, warning=FALSE, include=FALSE}
+```{r seguridad, echo=FALSE, warning=FALSE, hide=TRUE}
 # SEGURIDAD---------------------------------------------------------------------
 
 #TOMO CADA BASE DE DATOS, LA INTERSECTO Y HAGO EL CONTEO:
@@ -493,7 +479,7 @@ se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/mi
 ```
 
 
-```{r tramites, echo=FALSE, warning=FALSE, include=FALSE}
+```{r tramites, echo=FALSE, warning=FALSE, hide=TRUE}
 
 #TRAMITES-----------------------------------------------------------------------
 
@@ -542,7 +528,7 @@ rm(t_bancos,t_cajeros)
 
 
 
-```{r transporte, echo=FALSE, warning=FALSE, include=FALSE}
+```{r transporte, echo=FALSE, warning=FALSE, hide=TRUE}
 
 #TRANSPORTE---------------------------------------------------------------------
 
@@ -574,7 +560,7 @@ tp_garagem = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/tr
 </h3>
 
 
-```{r unificado, include=FALSE}
+```{r unificado, echo=FALSE, warning=FALSE, hide=TRUE}
 #PARA ELIMINAR OBJETOS DE MI ENTORNO QUE NO USÉ AL FINAL
 #rm(a_rcivil)
 
