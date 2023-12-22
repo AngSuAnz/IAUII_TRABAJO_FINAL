@@ -2,7 +2,6 @@
 title: "Trabajo Final ---"
 description: |
   Instrumentos de Análisis Urbano II
-output_dir: "docs"
 site: distill::distill_website
 ---
 

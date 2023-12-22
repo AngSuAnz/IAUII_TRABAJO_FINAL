@@ -2,8 +2,6 @@
 title: "Fuentes"
 description: |
   Origen de la información y referencias
-output_dir: "docs"
-site: distill::distill_website
 ---
 
 ```{r, include=FALSE}
@@ -11,50 +9,14 @@ options(scipen = 999)
 
 knitr::opts_chunk$set(echo = TRUE)
 
-library(bootstrap)
-library(bslib)
 library(data.table)
 library(dplyr)
 library(DT)
-library(geofacet)
-library(ggmap)
-library(ggplot2)
 library(googlesheets4)
-library(installr)
-library(janitor)
-library(knitr)
-library(leaflet)
-library(leaflet.extras)
-library(lubridate)
-library(lwgeom)
-library(maptools)
-library(openxlsx)
-library(osmdata)
-library(osrm)
-library(plotly)
-library(purrr)
-library(RColorBrewer)
-library(readxl)
-library(readr)
-library(rgdal)
-library(rgeos)
-library(rmarkdown)
-library(rsconnect)
-library(scales)
-library(sf)
-#library(shiny)
-#library(shinydashboard)
-#library(shinyjs)
-library(sodium)
-library(sp)
 library(stringr)
 library(tidygeocoder)
 library(tidyr)
 library(tidyverse)
-library(viridis)
-library(viridisLite)
-library(vroom)
-library(writexl)
 ```
 
 Aclaración inicial: me embarqué muy contenta en esta empresa y con medio tp ya desarrollado encontré este [hermoso trabajo](https://buenosaires.gob.ar/publicaciones-de-informacion-territorial/indice-de-cobertura-de-las-necesidades-de-la-vida) que básicamente hace lo que yo quería, pero mil veces mejor, así que lo tomé como referencia en algunos puntos, pero me propuse de todas maneras seguir construyendo mi propio camino.

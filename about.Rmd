@@ -2,8 +2,6 @@
 title: "+Info"
 description: |
   Información adicional
-output_dir: "docs"
-site: distill::distill_website
 ---
 
 **Docentes** | Juan Pablo Ruiz Nicolini, Pablo Tiscornia
@@ -12,7 +10,4 @@ site: distill::distill_website
 
 **UTDT**     | MEU 2023
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
-```
 

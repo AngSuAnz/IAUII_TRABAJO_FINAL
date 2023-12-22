@@ -2,8 +2,6 @@
 title: "CABA Vecinal"
 description: |
   La Ciudad Autónoma de Buenos Aires en 15 minutos
-output_dir: "docs"
-site: distill::distill_website
 ---
 
 
@@ -232,7 +230,7 @@ buscar_osm <- function(nombre_objeto, clave) {
 
 
 <h2>
-  NECESIDADES COTIDIANAS </br>
+  BASES DE DATOS </br>
   <small class="text-muted"> |  Ejes y Variables </small>
 </h2>
 
@@ -274,9 +272,13 @@ Sin embargo, continué con el trabajo, ya que dejando una base y una metodologí
 (Resalto este conflicto, ya que las ponderaciones sobre las variables que construyen cada eje, y a su vez el índice, se hicieron desde esta deficiencia y, por lo tanto, no tienen ninguna rigurosidad ni validez. Solo sirven a modo de ejercicio)
 
 
-<h3>
-  EJE Autoabastecimiento </br>
+<h2>
+  NECESIDADES COTIDIANAS </br>
   <small class="text-muted"> |  Ejes y Variables </small>
+</h2>
+
+<h3>
+  01| Autoabastecimiento
 </h3>
 
 <details><summary> Código </summary> 
@@ -321,6 +323,10 @@ a_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets
 ```
 </details>
 
+<h3>
+  02| Cultura
+</h3>
+
 <details><summary> Código </summary> 
 ```{r cultura}
 # CULTURA------------------------------------------------------------------------
@@ -335,6 +341,86 @@ c_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/
   filter(!is.na(BARRIO))
 ```
 </details>
+
+<h3>
+  03| Deportes
+</h3>
+
+<details><summary> Código </summary> 
+```{r deportes}
+#DEPORTES-------------------------------------------------------------------------
+
+d_skate = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/pistas-skate/pistas-de-skate.csv",
+                    stringsAsFactors = T) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_d_skate")
+
+d_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/polideportivos/polideportivos.geojson")  %>% 
+  conteo_interno("n_d_polideportivos")
+
+d_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
+  conteo_interno("n_d_clubes")
+```
+</details>
+
+<h3>
+  04| Educación
+</h3>
+
+<details><summary> Código </summary> 
+```{r educacion}
+#EDUCACION----------------------------------------------------------------------
+
+e_jardinesc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/jardines-comunitarios/jardin_comunitario.geojson") %>% 
+  conteo_interno("n_e_jardinesc")
+
+e_primerainfancia = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-primera-infancia/centros-de-primera-infancia.geojson") %>% 
+  conteo_interno("n_e_primerainfancia")
+
+e_desarrolloi = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-desarrollo-infantil/centros-de-desarrollo-infantil.geojson") %>% 
+  conteo_interno("n_e_desarrolloi")
+
+e_educativos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/establecimientos-educativos/establecimientos_educativos_WGS84.geojson") %>% 
+  conteo_interno("n_e_educativos")
+
+e_universidades = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/universidades/universidades.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_e_universidades") 
+
+e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/bibliotecas/bibliotecas.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno("n_e_bibliotecas") 
+
+```
+</details>
+
+<h3>
+  05| Medio Ambiente
+</h3>
+
+<details><summary> Código </summary> 
+```{r medio_ambiente}
+#MEDIO AMBIENTE-------------------------------------------------------------------
+
+#mb_arbolado = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/atencion-ciudadana/arbolado-publico-lineal/arbolado-publico-lineal-2017-2018.geojson") %>% 
+#  conteo_interno("n_tp_arbolado")
+
+mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secretaria-de-desarrollo-urbano/espacios-verdes/espacio_verde_publico.geojson") %>% 
+  st_make_valid() %>% 
+  st_centroid() %>% 
+  #hacer una ponderacion por tipo de espacio verde
+  mutate(clasificac = as.factor(clasificac)) %>% 
+  conteo_interno("n_mb_eevv")
+
+
+```
+</details>
+
+<h3>
+  06| Recreación
+</h3>
 
 <details><summary> Código </summary> 
 ```{r recreacion}
@@ -379,69 +465,9 @@ r_bailables =  st_read("data/r_bailables.geojson") %>%
 ```
 </details>
 
-<details><summary> Código </summary> 
-```{r deportes}
-#DEPORTES-------------------------------------------------------------------------
-
-d_skate = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/pistas-skate/pistas-de-skate.csv",
-                    stringsAsFactors = T) %>% 
-  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  conteo_interno("n_d_skate")
-
-d_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/polideportivos/polideportivos.geojson")  %>% 
-  conteo_interno("n_d_polideportivos")
-
-d_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
-  conteo_interno("n_d_clubes")
-```
-</details>
-
-<details><summary> Código </summary> 
-```{r educacion}
-#EDUCACION----------------------------------------------------------------------
-
-e_jardinesc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/jardines-comunitarios/jardin_comunitario.geojson") %>% 
-  conteo_interno("n_e_jardinesc")
-
-e_primerainfancia = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-primera-infancia/centros-de-primera-infancia.geojson") %>% 
-  conteo_interno("n_e_primerainfancia")
-
-e_desarrolloi = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-desarrollo-infantil/centros-de-desarrollo-infantil.geojson") %>% 
-  conteo_interno("n_e_desarrolloi")
-
-e_educativos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/establecimientos-educativos/establecimientos_educativos_WGS84.geojson") %>% 
-  conteo_interno("n_e_educativos")
-
-e_universidades = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/universidades/universidades.xlsx") %>% 
-  filter(!is.na(lat)) %>% 
-  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  conteo_interno("n_e_universidades") 
-
-e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/bibliotecas/bibliotecas.xlsx") %>% 
-  filter(!is.na(lat)) %>% 
-  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  conteo_interno("n_e_bibliotecas") 
-
-```
-</details>
-
-<details><summary> Código </summary> 
-```{r medio_ambiente}
-#MEDIO AMBIENTE-------------------------------------------------------------------
-
-#mb_arbolado = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/atencion-ciudadana/arbolado-publico-lineal/arbolado-publico-lineal-2017-2018.geojson") %>% 
-#  conteo_interno("n_tp_arbolado")
-
-mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secretaria-de-desarrollo-urbano/espacios-verdes/espacio_verde_publico.geojson") %>% 
-  st_make_valid() %>% 
-  st_centroid() %>% 
-  #hacer una ponderacion por tipo de espacio verde
-  mutate(clasificac = as.factor(clasificac)) %>% 
-  conteo_interno("n_mb_eevv")
-
-
-```
-</details>
+<h3>
+  07| Salud
+</h3>
 
 <details><summary> Código </summary> 
 ```{r salud}
@@ -498,6 +524,10 @@ s_veterinarias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/dataset
 ```
 </details>
 
+<h3>
+  08| Seguridad
+</h3>
+
 <details><summary> Código </summary> 
 ```{r seguridad}
 # SEGURIDAD---------------------------------------------------------------------
@@ -517,6 +547,10 @@ se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/mi
 
 ```
 </details>
+
+<h3>
+  09| Tramites
+</h3>
 
 <details><summary> Código </summary> 
 ```{r tramites}
@@ -567,6 +601,10 @@ rm(t_bancos,t_cajeros)
 ```
 </details>
 
+<h3>
+  10| Transporte
+</h3>
+
 <details><summary> Código </summary> 
 ```{r transporte}
 
@@ -596,8 +634,8 @@ tp_garagem = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/tr
 </details>
 
 <h3>
-  Necesidades Cotidianas </br>
-  <small class="text-muted"> |  Ejes y Variables </small>
+  CONSTRUCCIÓN DEL ÍNDICE </br>
+  <small class="text-muted"> |  Ponderación de los Ejes </small>
 </h3>
 
 <details><summary> Código </summary> 
