@@ -114,9 +114,9 @@ centroides = st_centroid(barrios) %>%
 #  st_drop_geometry(geometry) %>% 
 #  st_as_sf()
 
-#st_write(puntos_aleatoriossv, "data/puntos_aleatoriossvk.geojson")
+#st_write(puntos_aleatoriossv, "data/nuevos_puntos.geojson")
 
-puntos_aleatorios = st_read("data/nuevos_puntos_finalisimo.geojson")
+puntos_aleatorios = st_read("data/nuevos_puntos.geojson")
 
 ```
 </details>
@@ -137,12 +137,12 @@ puntos_aleatorios = st_read("data/nuevos_puntos_finalisimo.geojson")
 # Combino las isocronas
 #isocronas_bindsv <- do.call(rbind, lista_isocronassv)
 
-#st_write(isocronas_bindsv, "data/isocronas_fnalisimo.geojson")
+#st_write(isocronas_bindsv, "data/isocronas.geojson")
 
 
 
 #Ahora simplemente llamo la base que armé y le uno los nombres por orden de las observaciones
-isocronas_barrios = st_read("data/isocronas_finalisimo.geojson") %>% 
+isocronas_barrios = st_read("data/isocronas.geojson") %>% 
                     st_transform(4326) %>% 
                     cbind(st_drop_geometry(centroides)) %>% 
                     st_make_valid()
