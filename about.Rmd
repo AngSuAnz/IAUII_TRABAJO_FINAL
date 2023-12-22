@@ -2,6 +2,7 @@
 title: "+Info"
 description: |
   Información adicional
+output_dir: "docs"
 site: distill::distill_website
 ---
 

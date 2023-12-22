@@ -2,13 +2,14 @@
 title: "CABA Vecinal"
 description: |
   La Ciudad Autónoma de Buenos Aires en 15 minutos
+output_dir: "docs"
 site: distill::distill_website
 ---
 
-```{r librerias, include=FALSE}
-options(scipen = 999)
 
-knitr::opts_chunk$set(echo = TRUE)
+```{r librerias, include=FALSE}
+
+options(scipen = 999)
 
 library(bootstrap)
 library(bslib)
@@ -59,11 +60,14 @@ library(writexl)
 
 ```
 
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  comment =FALSE,
+  #fig.width = 6, fig.height = 6, 
+  message=FALSE, warning=FALSE
+)
+```
 
-<h3>
-  LA PREGUNTA </br>
-  <small class="text-muted"> |  Origen de la investigación </small>
-</h3>
 
 La ya conocida teoría de las "Ciudades de 15 minutos", término acuñado por Carlos Moreno [(2016)](https://www.latribune.fr/regions/smart-cities/la-tribune-de-carlos-moreno/la-ville-du-quart-d-heure-pour-un-nouveau-chrono-urbanisme-604358.html), cuenta ya con 7 años de "popularidad", en los que ha generado un intenso debate con partidarios y detractores apasionados.
 
@@ -72,15 +76,16 @@ Si bien la teoría y los conceptos que presenta no son nuevos, ya que han profun
 Por esa razón, este estudio se propone analizar los datos disponibles de la Ciudad Autónoma de Buenos Aires para evaluar en qué medida puede esta ser considerada una "ciudad de 15 minutos", una ciudad "Vecinal".
 
 
-<h3>
-  INICIO </br>
+<h2>
+  PRIMER PASO </br>
   <small class="text-muted"> |  Metodología de investigación </small>
-</h3>
+</h2>
 
 Para llevar esto a cabo, conformé una muestra territorial, tomando un punto aleatorio dentro de cada barrio de la Ciudad de Buenos Aires.
 A partir de estos puntos, construí una isocrona definida a 15minutos a pie y tomé esas porciones del territorio como las áreas a estudiar.
 
-```{r barrios_puntos, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r barrios}
 barrios <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/barrios/barrios.geojson") %>% 
   mutate(AREAKM2 = round((AREA/1000000),2)) %>% 
   st_transform(4326)%>%
@@ -114,9 +119,10 @@ centroides = st_centroid(barrios) %>%
 puntos_aleatorios = st_read("data/nuevos_puntos_finalisimo.geojson")
 
 ```
+</details>
 
-
-```{r construccion_isocronas, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r construccion_isocronas}
 
 #ISOCRONAS PARA PUNTOS ALEATORIOS EN BARRIOS DESCONTANDO ESPACIOS VERDES:
 #ESTA SECCIÓN VOY A EJECUTARLA UNA SOLA VEZ Y GUARDO EL OBJETO PORQUE TARDA MUCHO (itero en cada punto para hacer las isocronas):
@@ -145,15 +151,12 @@ isocronas_barrios = st_read("data/isocronas_finalisimo.geojson") %>%
 isocronas_inter = isocronas_barrios %>% 
                           select(BARRIO)
 ```
-
-<h3>
-  ISOCRONAS </br>
-  <small class="text-muted"> |  Visualización </small>
-</h3>
+</details>
 
 Resultado de las isocronas en relación con los puntos y el perímetro de cada barrio:
 
-```{r mapa_isocronas, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r mapa_isocronas}
 mapa_isocronas =
 leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
   addTiles() %>%
@@ -190,43 +193,20 @@ leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
               fillOpacity = 0.5,
               popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
               group = "Isocrona")
+```
+</details>
 
+```{r, echo=FALSE}
 mapa_isocronas
 ```
 
+
 Si bien en un planteo inicial había tomdo como origen de las isocronas los centroides de los barrios, posteriormente modifiqué esto para que la muestra pudiese representar las condiciones en las periferias y superposiciones entre geometrías, ya que son también condiciones reales que se dan dentro de la ciudad, y deben ser contempladas.
 
-<h3>
-  Necesidades Cotidianas </br>
-  <small class="text-muted"> |  Ejes y Variables </small>
-</h3>
+Por otro lado, para simplificar el trabajo de intersección de las bases con las isocronas, y la búsqueda de datos en osm, definí algunas funciones inicialmente:
 
-Con el territorio definido, comencé la busqueda de bases de datos geográficos disponibles y/o construibles para representar los distintos ejes y variables con los que se pueden representar las necesidades cotidianas que requieren esta proximidad.
-
-```{r cuadro_bases_de_datos,echo = FALSE, warning=FALSE, hide=TRUE}
-gs4_deauth() # Eliminar auth interactivo (link publico)
-variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
-
-
-datatable(variables, 
-          #style = 'bootstrap', 
-          #class = 'cell-border stripe', 
-          options = list(
-            searching = FALSE,
-            rownames = FALSE,
-            pageLength = 10,
-            dom = 't',
-            scrollY = '300px',
-            language = list(zeroRecords = "No existen datos para los requerimientos seleccionados"),
-            autoWidth = TRUE,
-            width = '110%',
-      columnDefs = list(
-        list(targets = 0, visible = FALSE)
-          )))
-
-```
-
-```{r bbox_funciones, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r bbox_funciones}
 #DEFINO ESTA FUNCION PARA SIMPLIFICAR EL FILTRO DE LAS VARIABLES CON LA GEOMETRIA DE LAS ISOCRONAS Y HACER EL CONTEO
 conteo_interno = function(db, nombre_variable){
   db %>% 
@@ -248,9 +228,59 @@ buscar_osm <- function(nombre_objeto, clave) {
   assign(nombre_objeto, opq_objeto, envir = .GlobalEnv)
 }
 ```
+</details>
 
 
-```{r autoabastecimiento, echo=FALSE, warning=FALSE, hide=TRUE}
+<h2>
+  NECESIDADES COTIDIANAS </br>
+  <small class="text-muted"> |  Ejes y Variables </small>
+</h2>
+
+Con el territorio definido, comencé la busqueda de bases de datos geográficos disponibles y/o construibles para conformar los distintos ejes y variables con los que se pueden representar las necesidades cotidianas que requieren esta proximidad.
+
+<details><summary> Código </summary> 
+```{r cuadro_bases_de_datos}
+gs4_deauth() # Eliminar auth interactivo (link publico)
+variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
+
+tabla=
+datatable(variables, 
+          #style = 'bootstrap', 
+          #class = 'cell-border stripe', 
+          options = list(
+            searching = FALSE,
+            rownames = FALSE,
+            pageLength = 10,
+            dom = 't',
+            scrollY = '300px',
+            language = list(zeroRecords = "No existen datos para los requerimientos seleccionados"),
+            autoWidth = TRUE,
+            width = '110%',
+      columnDefs = list(
+        list(targets = 0, visible = FALSE)
+          )))
+
+```
+</details>
+
+```{r, echo=FALSE}
+tabla
+```
+
+Al analizar las bases disponibles, y las que podía construir desde búsquedas con OSM, se hizo evidente que eran insuficientes y que estos datos no podrían representar la realidad que deseaba investigar.
+
+Sin embargo, continué con el trabajo, ya que dejando una base y una metodología armada, posteriormente se podría completar/mejorar con datos nuevos que vayan apareciendo.
+
+(Resalto este conflicto, ya que las ponderaciones sobre las variables que construyen cada eje, y a su vez el índice, se hicieron desde esta deficiencia y, por lo tanto, no tienen ninguna rigurosidad ni validez. Solo sirven a modo de ejercicio)
+
+
+<h3>
+  EJE Autoabastecimiento </br>
+  <small class="text-muted"> |  Ejes y Variables </small>
+</h3>
+
+<details><summary> Código </summary> 
+```{r autoabastecimiento}
 #AUTOABASTECIMIENTO--------------------------------------------------------------
 
 #HAGO UNA BUQUEDA DE LOS COMERCIOS CON OSM, GUARDO LA NUEVA BASE Y EDSHABILITO EL PROCESO PARA NO REPETIRLO:
@@ -289,8 +319,10 @@ a_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets
   conteo_interno("n_r_gastronomicos")
 
 ```
+</details>
 
-```{r cultura, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r cultura}
 # CULTURA------------------------------------------------------------------------
 
 
@@ -302,8 +334,10 @@ c_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/
   conteo_interno("n_r_monumentos") %>% 
   filter(!is.na(BARRIO))
 ```
+</details>
 
-```{r recreacion, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r recreacion}
 # RECREACION----------------------------------------------------------
 
 r_jugotecas = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
@@ -343,9 +377,10 @@ r_jubilados = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/m
 r_bailables =  st_read("data/r_bailables.geojson") %>% 
   conteo_interno("n_r_bailables") 
 ```
+</details>
 
-
-```{r deportes, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r deportes}
 #DEPORTES-------------------------------------------------------------------------
 
 d_skate = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/pistas-skate/pistas-de-skate.csv",
@@ -359,9 +394,10 @@ d_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/dataset
 d_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
   conteo_interno("n_d_clubes")
 ```
+</details>
 
-
-```{r educacion, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r educacion}
 #EDUCACION----------------------------------------------------------------------
 
 e_jardinesc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/jardines-comunitarios/jardin_comunitario.geojson") %>% 
@@ -387,9 +423,10 @@ e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets
   conteo_interno("n_e_bibliotecas") 
 
 ```
+</details>
 
-
-```{r medio_ambiente, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r medio_ambiente}
 #MEDIO AMBIENTE-------------------------------------------------------------------
 
 #mb_arbolado = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/atencion-ciudadana/arbolado-publico-lineal/arbolado-publico-lineal-2017-2018.geojson") %>% 
@@ -404,9 +441,10 @@ mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secreta
 
 
 ```
+</details>
 
-
-```{r salud, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r salud}
 # SALUD-------------------------------------------------------------------------
 
 s_ufebriles = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/ufus/ubicacion-ufus.geojson")  %>% 
@@ -458,9 +496,10 @@ s_veterinarias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/dataset
   conteo_interno("n_s_veterinarias")
 
 ```
+</details>
 
-
-```{r seguridad, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r seguridad}
 # SEGURIDAD---------------------------------------------------------------------
 
 #TOMO CADA BASE DE DATOS, LA INTERSECTO Y HAGO EL CONTEO:
@@ -477,9 +516,10 @@ se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/mi
   conteo_interno("n_se_bomberos")
 
 ```
+</details>
 
-
-```{r tramites, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r tramites}
 
 #TRAMITES-----------------------------------------------------------------------
 
@@ -525,10 +565,10 @@ t_bancosyc = rbind(t_bancos,t_cajeros) %>%
 
 rm(t_bancos,t_cajeros)
 ```
+</details>
 
-
-
-```{r transporte, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r transporte}
 
 #TRANSPORTE---------------------------------------------------------------------
 
@@ -553,14 +593,15 @@ tp_garagem = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/tr
   conteo_interno("n_tp_garagem")
 
 ```
+</details>
 
 <h3>
   Necesidades Cotidianas </br>
   <small class="text-muted"> |  Ejes y Variables </small>
 </h3>
 
-
-```{r unificado, echo=FALSE, warning=FALSE, hide=TRUE}
+<details><summary> Código </summary> 
+```{r unificado}
 #PARA ELIMINAR OBJETOS DE MI ENTORNO QUE NO USÉ AL FINAL
 #rm(a_rcivil)
 
@@ -576,10 +617,8 @@ isocronas_datos <- bases_de_datos %>%
       replace(is.na(.), 0)
   }, .init = isocronas_barrios)
 ```
+</details>
 
-
-#PONDERACIONES
-Si bien la rigurosidad metodologia de estas ponderaciones es practicamente inexistente debido a que no tiene un respaldo teorico, sino que se basa en mi subjetividad, la idea es plantear al menos algun tipo de diferencia en el peso de cada variable de los ejes para reconocer que no deberían ser iguales; y dejar asentada una forma de calcularlo.
 
 
 

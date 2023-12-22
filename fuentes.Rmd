@@ -2,6 +2,7 @@
 title: "Fuentes"
 description: |
   Origen de la información y referencias
+output_dir: "docs"
 site: distill::distill_website
 ---
 
