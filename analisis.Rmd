@@ -69,9 +69,9 @@ knitr::opts_chunk$set(
 
 La ya conocida teoría de las "Ciudades de 15 minutos", término acuñado por Carlos Moreno [(2016)](https://www.latribune.fr/regions/smart-cities/la-tribune-de-carlos-moreno/la-ville-du-quart-d-heure-pour-un-nouveau-chrono-urbanisme-604358.html), cuenta ya con 7 años de "popularidad", en los que ha generado un intenso debate con partidarios y detractores apasionados.
 
-Si bien la teoría y los conceptos que presenta no son nuevos, ya que han profundamente trabajados previamente por Clarence Perry [(1929)](https://www.taylorfrancis.com/chapters/edit/10.4324/9780429261732-66/neighborhood-unit-clarence-perry), Jane Jacobs [(1961)](https://books.google.com.ar/books/about/Muerte_y_vida_de_las_grandes_ciudades.html?id=fWQeEAAAQBAJ&source=kp_book_description&redir_esc=y), Carmen Belloni [(1984)](https://pascal-francis.inist.fr/vibad/index.php?action=getRecordDetail&idt=6512313),y Sandra Bonfiglioli [(1997)](https://journals.sagepub.com/doi/10.1177/102425899700300405), entre otros; la temática ha recobrado relevancia en el contexto actual luego del gran impacto que ha tenido la pandemia por COVID 19.
+Si bien la teoría y los conceptos que presenta no son nuevos, ya que han sido tratados previamente por Clarence Perry [(1929)](https://www.taylorfrancis.com/chapters/edit/10.4324/9780429261732-66/neighborhood-unit-clarence-perry), Jane Jacobs [(1961)](https://books.google.com.ar/books/about/Muerte_y_vida_de_las_grandes_ciudades.html?id=fWQeEAAAQBAJ&source=kp_book_description&redir_esc=y), Carmen Belloni [(1984)](https://pascal-francis.inist.fr/vibad/index.php?action=getRecordDetail&idt=6512313),y Sandra Bonfiglioli [(1997)](https://journals.sagepub.com/doi/10.1177/102425899700300405), entre otros; la temática ha recobrado relevancia en el contexto actual luego del gran impacto que ha tenido la pandemia por COVID 19.
 
-Por esa razón, este estudio se propone analizar los datos disponibles de la Ciudad Autónoma de Buenos Aires para evaluar en qué medida puede esta ser considerada una "ciudad de 15 minutos", una ciudad "Vecinal".
+Por esa razón, este estudio se propone analizar los datos disponibles de la Ciudad Autónoma de Buenos Aires para evaluar en qué medida puede ser considerada una "ciudad de 15 minutos", una **Ciudad Vecinal**.
 
 
 <h2>
@@ -88,6 +88,9 @@ barrios <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/minist
   mutate(AREAKM2 = round((AREA/1000000),2)) %>% 
   st_transform(4326)%>%
   arrange(BARRIO)
+
+barrios_inter = barrios %>% 
+  select(BARRIO,AREAKM2)
 
 mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secretaria-de-desarrollo-urbano/espacios-verdes/espacio_verde_publico.geojson") %>% 
   st_make_valid() 
@@ -228,7 +231,7 @@ leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
 ```
 </details>
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
 mapa_isocronas
 ```
 
@@ -295,7 +298,7 @@ datatable(variables,
 ```
 </details>
 
-```{r tablaa,results='asis', echo=FALSE, out.width='150%', fig.align='center'}
+```{r tablaa,results='asis', echo=FALSE, out.width='200%', fig.align='center'}
 print(tabla_variables)
 ```
 
@@ -315,11 +318,18 @@ Sin embargo, continué con el trabajo, ya que dejando una base y una metodologí
   01| Autoabastecimiento
 </h3>
 
+Selecciono y cuento los puntos de autoabastecimiento dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Comercios (15min)
+  - Ferias (30min)
+  - Locales gastronómicos (15min)
+  - Estaciones de servicio (30min)
+  
 <details><summary> Código </summary> 
 ```{r autoabastecimiento}
 #AUTOABASTECIMIENTO--------------------------------------------------------------
 
-#HAGO UNA BUQUEDA DE LOS COMERCIOS CON OSM, GUARDO LA NUEVA BASE Y EDSHABILITO EL PROCESO PARA NO REPETIRLO:
+#HAGO UNA BUQUEDA DE LOS COMERCIOS CON OSM, GUARDO LA NUEVA BASE Y DESHABILITO EL PROCESO PARA NO REPETIRLO:
 
 #buscar_osm("a_comercio", "shop")
 
@@ -352,29 +362,191 @@ a_eess = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/minist
   conteo_interno(isocronas30,"n_a_eess")
 
 a_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ente-de-turismo/oferta-establecimientos-gastronomicos/oferta-gastronomica.geojson") %>% 
-  conteo_interno(isocronas15,"n_r_gastronomicos")
+  conteo_interno(isocronas15,"n_a_gastronomicos")
 
 ```
 </details>
+
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea veriada y competitiva.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^a_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_a_comercio >= 10, 0.6, n_a_comercio*0.1) +
+                              ifelse(n_a_eess >= 1, 0.08, 0)+
+                              ifelse(n_a_ferias >= 1, 0.02, 0)+
+                              ifelse(n_a_gastronomicos >= 6, 0.28, 0))
+```
+</details>
+
+Configuro el mapa.
+
+<details><summary> Código </summary> 
+```{r}
+# Definir una función para crear una paleta de colores personalizada
+colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
+
+# Generar la paleta basada en tu rango de valores (0 a 1)
+n <- 20  # Número de colores en la paleta
+paleta <- colores(n)
+
+pal_i <- colorNumeric(paleta, domain = c(0,1))
+
+mapa_subindice =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.AUTOABASTECIMIENTO: </strong>",subindice,"<br> 
+                             <strong>  COMERCIOS: </strong>", n_a_comercio,"<br> 
+                             <strong>  FERIAS: </strong>", n_a_ferias,"<br> 
+                             <strong>  LOCALES GASTRONÓMICOS: </strong>", n_a_gastronomicos,"<br> 
+                             <strong>  ESTACIONES DE SERVICIO: </strong>", n_a_eess),
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+**SUBINDICE AUTOABASTECIMIENTO|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+
 
 <h3>
   02| Cultura
 </h3>
 
+Selecciono y cuento los puntos de oferta cultural dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Centros culturales (15min)
+  - Monumentos (30min)
+  
 <details><summary> Código </summary> 
 ```{r cultura}
 # CULTURA------------------------------------------------------------------------
 
-
-c_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% conteo_interno(isocronas15,"n_r_culturales")
+c_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% conteo_interno(isocronas15,"n_c_culturales")
 
 c_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-espacio-publico-e-higiene-urbana/monumentos/monumentos.xlsx") %>% 
   filter(!is.na(LATITUD)) %>% 
   st_as_sf(coords = c("LONGITUD", "LATITUD"), crs = 4326) %>% 
-  conteo_interno(isocronas30,"n_r_monumentos") %>% 
+  conteo_interno(isocronas30,"n_c_monumentos") %>% 
   filter(!is.na(BARRIO))
 ```
 </details>
+
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea veriada y competitiva.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^c_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_c_culturales >= 1, 0.85, 0) +
+                     ifelse(n_c_monumentos >= 1, 0.15, 0))
+```
+</details>
+
+<details><summary> Código </summary> 
+```{r}
+# Definir una función para crear una paleta de colores personalizada
+colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
+
+# Generar la paleta basada en tu rango de valores (0 a 1)
+n <- 20  # Número de colores en la paleta
+paleta <- colores(n)
+
+pal_i <- colorNumeric(paleta, domain = c(0,1))
+
+mapa_subindice =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.CULTURA: </strong>",subindice,"<br> 
+                             <strong>  ESPACIOS CULTURALES: </strong>", n_c_culturales,"<br> 
+                             <strong>  MONUMENTOS: </strong>", n_c_monumentos),
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+**SUBINDICE CULTURA|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+
 
 <h3>
   03| Deportes
@@ -657,9 +829,6 @@ tp_garagem = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/tr
 
 <details><summary> Código </summary> 
 ```{r unificado}
-#PARA ELIMINAR OBJETOS DE MI ENTORNO QUE NO USÉ AL FINAL
-#rm(a_rcivil)
-
 #LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
 bases_de_datos <- ls() %>%
   grep("^a_|^d_|^e_|^r_|^s_|^se_|^t_", ., value = TRUE) %>%
@@ -692,6 +861,7 @@ isocronas_datos <- bases_de_datos %>%
   - Diferentes herramientas de comunicación.
   - Simplificación del código.
   - Reducción de tiempos para el procesamiento de datos.
+  - Usar otro punto dentro de cada barrio para mejorar la representatividad de la muestra,
   - Conocimientos personales para no romper todo cada 2x3...
   
 
