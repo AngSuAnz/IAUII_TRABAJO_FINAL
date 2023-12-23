@@ -367,7 +367,7 @@ a_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets
 ```
 </details>
 
-Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea veriada y competitiva.
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea variada y competitiva.
 
 <details><summary> Código </summary> 
 ```{r}
@@ -377,21 +377,31 @@ bases_de_datos <- ls() %>%
   lapply(get)
 
 # ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
-barrios_datos <- bases_de_datos %>% 
+f_barrios_datos <- function() {
+  bases_de_datos %>% 
   reduce(function(df1, df2) {
     left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
       replace(is.na(.), 0)
-  }, .init = barrios_inter)
+  }, .init = barrios_inter)}
 
-barrios_datos = barrios_datos %>% 
+barrios_datos = f_barrios_datos() %>% 
   mutate(subindice = ifelse(n_a_comercio >= 10, 0.6, n_a_comercio*0.1) +
                               ifelse(n_a_eess >= 1, 0.08, 0)+
                               ifelse(n_a_ferias >= 1, 0.02, 0)+
-                              ifelse(n_a_gastronomicos >= 6, 0.28, 0))
+                              ifelse(n_a_gastronomicos >= 6, 0.28, 0),
+          popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.AUTOABASTECIMIENTO: </strong>",subindice,"<br> 
+                             <strong>  COMERCIOS: </strong>", n_a_comercio,"<br> 
+                             <strong>  FERIAS: </strong>", n_a_ferias,"<br> 
+                             <strong>  LOCALES GASTRONÓMICOS: </strong>", n_a_gastronomicos,"<br> 
+                             <strong>  ESTACIONES DE SERVICIO: </strong>", n_a_eess))
+
+barrios_datos_a = barrios_datos
 ```
 </details>
 
-Configuro el mapa.
+Configuro el mapa por primera vez y lo defino como una función.
 
 <details><summary> Código </summary> 
 ```{r}
@@ -404,7 +414,7 @@ paleta <- colores(n)
 
 pal_i <- colorNumeric(paleta, domain = c(0,1))
 
-mapa_subindice =
+mapa_subindice = function(){
 leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
   addTiles() %>%
   addProviderTiles(providers$CartoDB.Positron, group = "OSM",
@@ -420,13 +430,7 @@ leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
               opacity = 0.7,
               fillColor = ~pal_i(subindice),
               fillOpacity = 0.8,
-              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
-                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
-                             <strong> I.AUTOABASTECIMIENTO: </strong>",subindice,"<br> 
-                             <strong>  COMERCIOS: </strong>", n_a_comercio,"<br> 
-                             <strong>  FERIAS: </strong>", n_a_ferias,"<br> 
-                             <strong>  LOCALES GASTRONÓMICOS: </strong>", n_a_gastronomicos,"<br> 
-                             <strong>  ESTACIONES DE SERVICIO: </strong>", n_a_eess),
+              popup = ~popup,
               group = "Subindice por barrio") %>% 
   
       addCircleMarkers(data=puntos_aleatorios,
@@ -436,15 +440,16 @@ leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
               fillOpacity = 0.5,
               radius = 2,
               popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
-              group = "Puntos Aleatorios") 
+              group = "Puntos Aleatorios") }
 ```
 </details>
+
 
 **SUBINDICE AUTOABASTECIMIENTO|**
   Mapeo por barrio basado en los valores de la muestra
 
 ```{r, echo=FALSE, out.width='200%', fig.align='center'}
-mapa_subindice
+mapa_subindice()
 ```
 
 
@@ -472,7 +477,7 @@ c_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/
 ```
 </details>
 
-Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea veriada y competitiva.
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea variada y competitiva.
 
 <details><summary> Código </summary> 
 ```{r}
@@ -481,69 +486,25 @@ bases_de_datos <- ls() %>%
   grep("^c_", ., value = TRUE) %>%
   lapply(get)
 
-# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
-barrios_datos <- bases_de_datos %>% 
-  reduce(function(df1, df2) {
-    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
-      replace(is.na(.), 0)
-  }, .init = barrios_inter)
-
-barrios_datos = barrios_datos %>% 
+barrios_datos = f_barrios_datos() %>%  
   mutate(subindice = ifelse(n_c_culturales >= 1, 0.85, 0) +
-                     ifelse(n_c_monumentos >= 1, 0.15, 0))
-```
-</details>
-
-<details><summary> Código </summary> 
-```{r}
-# Definir una función para crear una paleta de colores personalizada
-colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
-
-# Generar la paleta basada en tu rango de valores (0 a 1)
-n <- 20  # Número de colores en la paleta
-paleta <- colores(n)
-
-pal_i <- colorNumeric(paleta, domain = c(0,1))
-
-mapa_subindice =
-leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
-  addTiles() %>%
-  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
-                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
-  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
-  addLayersControl(
-    baseGroups = c("OSM","Satelite"), 
-    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
-  
-  addPolygons(data= barrios_datos,
-              color = ~pal_i(subindice),
-              weight = 0.4,
-              opacity = 0.7,
-              fillColor = ~pal_i(subindice),
-              fillOpacity = 0.8,
-              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                     ifelse(n_c_monumentos >= 1, 0.15, 0),
+         popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
                              <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
                              <strong> I.CULTURA: </strong>",subindice,"<br> 
                              <strong>  ESPACIOS CULTURALES: </strong>", n_c_culturales,"<br> 
-                             <strong>  MONUMENTOS: </strong>", n_c_monumentos),
-              group = "Subindice por barrio") %>% 
-  
-      addCircleMarkers(data=puntos_aleatorios,
-              fillColor = "#45818e",
-              weight = 0.5,
-              color = "#45818e",
-              fillOpacity = 0.5,
-              radius = 2,
-              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
-              group = "Puntos Aleatorios") 
+                             <strong>  MONUMENTOS: </strong>", n_c_monumentos))
+
+barrios_datos_c = barrios_datos
 ```
 </details>
+
 
 **SUBINDICE CULTURA|**
   Mapeo por barrio basado en los valores de la muestra
 
 ```{r, echo=FALSE, out.width='200%', fig.align='center'}
-mapa_subindice
+mapa_subindice()
 ```
 
 
@@ -551,7 +512,11 @@ mapa_subindice
 <h3>
   03| Deportes
 </h3>
-
+Selecciono y cuento los puntos de oferta para realizar actividades deportivas dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Clubes (15min)
+  - Polideportivos (30min)
+  
 <details><summary> Código </summary> 
 ```{r deportes}
 #DEPORTES-------------------------------------------------------------------------
@@ -564,10 +529,47 @@ d_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/viceje
 ```
 </details>
 
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos servicios, y la cantidad necesaria para que la oferta sea variada y competitiva.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^d_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(subindice = ifelse(n_d_clubes >= 2, 0.6, 0) +
+                     ifelse(n_d_polideportivos >= 1, 0.4, 0),
+         popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.DEPORTE: </strong>",subindice,"<br> 
+                             <strong>  CLUBES: </strong>", n_d_clubes,"<br> 
+                             <strong>  POLIDEPORTIVOS: </strong>", n_d_polideportivos))
+
+barrios_datos_d = barrios_datos
+```
+</details>
+
+**SUBINDICE DEPORTE|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
+
 <h3>
   04| Educación
 </h3>
-
+Selecciono y cuento los puntos de oferta para realizar actividades deportivas dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Jardines Comunitarios (15min)
+  - Centros de primera infancia (15min)
+  - Centros de desarrollo infantil (15min)
+  - Establecimientos educativos (15min)
+  - Universidades (30min)
+  - Bibliotecas (30min)
+  
 <details><summary> Código </summary> 
 ```{r educacion}
 #EDUCACION----------------------------------------------------------------------
@@ -597,10 +599,50 @@ e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets
 ```
 </details>
 
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos servicios, y la cantidad necesaria para que la oferta sea variada y responda a la densidad poblacional.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^e_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>%  
+  mutate(subindice = ifelse(n_e_bibliotecas >= 2, 0.05, 0) +
+                     ifelse(n_e_desarrolloi >= 1, 0.05, 0)+
+                     ifelse(n_e_educativos >= 1, 0.05, 0)+
+                     ifelse(n_e_jardinesc >= 1, 0.4, 0)+
+                     ifelse(n_e_primerainfancia >= 1, 0.05, 0)+
+                     ifelse(n_e_universidades >= 1, 0.3, 0),
+         popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.EDUCACIÓN: </strong>",subindice,"<br> 
+                             <strong>  ESTABLECIMIENTOS EDUCATIVOS: </strong>", n_e_educativos,"<br> 
+                             <strong>  UNIVERSIDADES: </strong>", n_e_universidades,"<br> 
+                             <strong>  CENTROS DE PRIMERA INFANCIA: </strong>", n_e_primerainfancia,"<br> 
+                             <strong>  DESARROLLO INICIAL: </strong>", n_e_desarrolloi,"<br> 
+                             <strong>  JARDINES COMUNITARIOS: </strong>", n_e_jardinesc,"<br> 
+                             <strong>  BIBLIOTECAS: </strong>", n_e_bibliotecas)
+           )
+
+barrios_datos_e = barrios_datos
+```
+</details>
+
+**SUBINDICE EDUCACIÓN|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
+
 <h3>
   05| Medio Ambiente
 </h3>
-
+Selecciono y cuento los espacios verdes y los puntos que representan focos de riesgo ambiental dentro de las isocronas. Los espacios verdes deberán estar a un máximo de 15min a pie, mientras que los focos de riesgo pueden tener efectos negativos sobre la vida de las personas incluso en un rango de 30min.
+En este subíndice, las variables afectan positiva y negativamente el resultado.
+  
 <details><summary> Código </summary> 
 ```{r medio_ambiente}
 #MEDIO AMBIENTE-------------------------------------------------------------------
@@ -615,13 +657,64 @@ mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secreta
   mutate(clasificac = as.factor(clasificac)) %>% 
   conteo_interno(isocronas15,"n_mb_eevv")
 
+riesgo1 = st_read("data/riesgo_poligonos.shp") %>% 
+  st_make_valid() %>% 
+  st_transform(4326) %>% 
+  st_centroid() %>% 
+  select(valor)
+
+riesgo2 = st_read("data/riesgo_puntos.shp") %>% 
+  st_make_valid() %>% 
+  st_transform(4326) %>% 
+  st_centroid() %>% 
+  select(valor)
+
+mb_riesgo = rbind(riesgo1,riesgo2) %>% 
+  conteo_interno(isocronas30,"n_mb_riesgo")
 
 ```
 </details>
 
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^mb_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(subindice = ifelse(n_mb_eevv >= 1, 1, 0) +
+                     ifelse(n_mb_riesgo >= 1, -1, 0),
+         popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.MEDIO AMBIENTE: </strong>",subindice,"<br> 
+                             <strong>  ESPACIOS VERDES: </strong>", n_mb_eevv,"<br> 
+                             <strong>  FOCOS DE RIESGO AMBIENTAL: </strong>", n_mb_riesgo))
+
+barrios_datos_mb = barrios_datos
+```
+</details>
+
+**SUBINDICE MEDIO AMBIENTE|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
+
+
 <h3>
   06| Recreación
 </h3>
+Selecciono y cuento los puntos de oferta para realizar actividades recreativas dentro de las isocronas según nivel de cotidianeidad de la necesidad y alcance/dimensión de los equipamientos (ej:estadios).
+Las bases disponibles cuentan con datos de:
+  - Jugotecas (15min)
+  - Estadios (30min)
+  - Zonas de prioridad peatonal (15min)
+  - Centros de jubilados (15min)
+  - Locales bailables (30min)
 
 <details><summary> Código </summary> 
 ```{r recreacion}
@@ -666,10 +759,60 @@ r_bailables =  st_read("data/r_bailables.geojson") %>%
 ```
 </details>
 
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^r_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(subindice = ifelse(n_r_bailables >= 1, 0.05, 0) +
+                     ifelse(n_r_estadios >= 1, 0.1, 0)+
+                     ifelse(n_r_jubilados >= 1, 0.2, 0)+
+                     ifelse(n_r_jugotecas >= 1, 0.25, 0)+
+                     ifelse(n_r_peatonal >= 1, 0.4, 0)) %>% 
+  mutate(popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.RECREACIÓN: </strong>",subindice,"<br> 
+                             <strong>  ZONAS PEATONALES: </strong>", n_r_peatonal,"<br> 
+                             <strong>  ESTADIOS: </strong>", n_r_estadios, "<br> 
+                             <strong>  CENTROS DE JUBILADOS: </strong>", n_r_jubilados,"<br> 
+                             <strong>  JUGOTECAS: </strong>", n_r_jugotecas,"<br> 
+                             <strong>  LOCALES BAILABLES: </strong>", n_r_bailables))
+
+barrios_datos_r = barrios_datos
+```
+</details>
+
+**SUBINDICE RECREACIÓN|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
+
 <h3>
   07| Salud
 </h3>
-
+Selecciono y cuento los puntos de equipamiento para la salud dentro de las isocronas según nivel de cotidianeidad de la necesidad y alcance/dimensión de los equipamientos (ej:hospitales).
+Las bases disponibles cuentan con datos de:
+  - Centros médicos barriales (15min)
+  - Centros de desarrollo infantil (15min)
+  - Centros de Salud y Acción Comunitaria (CeSAC) (15min)
+  - Centros de atención integral para la mujer (15min)
+  - Estaciones Saludables (15min)
+  - Farmacias (15min)
+  - Geriátricos (30min)
+  - Hospitales (30min)
+  - Centros de salud privados (30min)
+  - Unidades febriles de urgencia (30min)
+  - Centros de vacunación infantil (15min)
+  - Centros de vacunación para adultos mayores (15min)
+  
+  
 <details><summary> Código </summary> 
 ```{r salud}
 # SALUD-------------------------------------------------------------------------
@@ -719,9 +862,63 @@ s_esaludables = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/v
 ```
 </details>
 
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^s_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(subindice = ifelse(n_s_ufebriles >= 1, 0.06, 0) +
+                     ifelse(n_s_cimujer >= 1, 0.05, 0)+
+                     ifelse(n_s_hospitales >= 1, 0.2, 0)+
+                     ifelse(n_s_cdinfantil >= 1, 0.05, 0)+
+                     ifelse(n_s_farmacias >= 1, 0.1, 0)+
+                     ifelse(n_s_privados >= 1, 0.05, 0)+
+                     ifelse(n_s_vinfantil >= 1, 0.02, 0)+
+                     ifelse(n_s_cesac >= 1, 0.3, 0)+
+                     ifelse(n_s_vmayores >= 1, 0.02, 0)+
+                     ifelse(n_s_barriales >= 1, 0.05, 0)+
+                     ifelse(n_s_geriatricos >= 1, 0.05, 0)+
+                     ifelse(n_s_esaludables >= 1, 0.05, 0)) %>% 
+  mutate(popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.SALUD: </strong>",subindice,"<br> 
+                             <strong>  UNIDADES FEBRILES: </strong>", n_s_ufebriles,"<br> 
+                             <strong>  CENTROS MUJER: </strong>", n_s_cimujer, "<br> 
+                             <strong>  HOSPITALES: </strong>", n_s_hospitales,"<br> 
+                             <strong>  CENTROS DESARROLLO INFANTIL: </strong>", n_s_cdinfantil,"<br> 
+                             <strong>  FARMACIAS: </strong>", n_s_farmacias,"<br> 
+                             <strong>  CENTROS PRIVADOS: </strong>", n_s_privados,"<br> 
+                             <strong>  VACUNACION INFANTIL: </strong>", n_s_vinfantil,"<br> 
+                             <strong>  CESACs: </strong>", n_s_cesac,"<br> 
+                             <strong>  VACUNACION MAYORES: </strong>", n_s_vmayores,"<br> 
+                             <strong>  CENTROS BARRIALES: </strong>", n_s_barriales,"<br> 
+                             <strong>  GERIATRICOS: </strong>", n_s_geriatricos,"<br> 
+                             <strong>  ESTACIONES SALUDABLES: </strong>", n_s_esaludables))
+
+barrios_datos_s = barrios_datos
+```
+</details>
+
+**SUBINDICE SALUD|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
+
+
 <h3>
   08| Seguridad
 </h3>
+Selecciono y cuento los puntos de equipamiento de seguridad dentro de las isocronas.
+Las bases disponibles cuentan con datos de:
+  - Comisarias (30min)
+  - Cuarteles y destacamentos de bomberos (30min)
 
 <details><summary> Código </summary> 
 ```{r seguridad}
@@ -739,9 +936,37 @@ se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/mi
   select(long,lat,dcia,gestion) %>% 
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
   conteo_interno(isocronas30,"n_se_bomberos")
-
 ```
 </details>
+
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^se_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(subindice = ifelse(n_se_comisarias >= 1, 0.5, 0) +
+                     ifelse(n_se_bomberos >= 1, 0.5, 0)) %>% 
+  mutate(popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.SEGURIDAD: </strong>",subindice,"<br> 
+                             <strong>  COMISARIAS: </strong>", n_se_comisarias,"<br> 
+                             <strong>  BOMBEROS: </strong>", n_se_bomberos))
+
+barrios_datos_se = barrios_datos
+```
+</details>
+
+**SUBINDICE SEGURIDAD|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
 
 <h3>
   09| Tramites
@@ -790,6 +1015,35 @@ rm(t_bancos,t_cajeros)
 ```
 </details>
 
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^t_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(subindice = ifelse(n_t_puntos >= 1, 0.4, 0) +
+                     ifelse(n_t_bancosyc >= 4, 0.6, 0)) %>% 
+  mutate(popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.TRÁMITES: </strong>",subindice,"<br> 
+                             <strong>  PUNTOS DE ATENCIÓN: </strong>", n_t_puntos,"<br> 
+                             <strong>  BOMBEROS: </strong>", n_t_bancosyc))
+
+barrios_datos_t = barrios_datos
+```
+</details>
+
+**SUBINDICE TRAMITES|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
+
 <h3>
   10| Transporte
 </h3>
@@ -821,6 +1075,43 @@ tp_garagem = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/tr
 
 ```
 </details>
+
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^tp_", ., value = TRUE) %>%
+  lapply(get)
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(subindice = ifelse(n_tp_colectivos >= 4, 0.3, 0) +
+                     ifelse(n_tp_bicis >= 1, 0.1, 0)+
+                     ifelse(n_tp_subte >= 1, 0.25, 0)+
+                     ifelse(n_tp_ffcc >= 1, 0.25, 0)+
+                     ifelse(n_tp_garagec >= 1, 0.05, 0)+
+                     ifelse(n_tp_garagem >= 1, 0.05, 0)) %>% 
+  mutate(popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.TRANSPORTE: </strong>",subindice,"<br> 
+                             <strong>  COLECTIVOS: </strong>", n_tp_colectivos,"<br> 
+                             <strong>  ECO-BICIS: </strong>", n_tp_bicis,"<br> 
+                             <strong>  SUBTE: </strong>", n_tp_subte,"<br> 
+                             <strong>  FFCC: </strong>", n_tp_ffcc,"<br> 
+                             <strong>  GARAGE C.: </strong>", n_tp_garagec,"<br> 
+                             <strong>  GARAGE M.: </strong>", n_tp_garagem))
+
+barrios_datos_tp = barrios_datos
+```
+</details>
+
+**SUBINDICE TRANSPORTE|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice()
+```
 
 <h3>
   CONSTRUCCIÓN DEL ÍNDICE </br>

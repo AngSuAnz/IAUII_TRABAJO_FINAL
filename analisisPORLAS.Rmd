@@ -1,0 +1,1318 @@
+---
+title: "CABA Vecinal"
+description: |
+  La Ciudad Autónoma de Buenos Aires en 15 minutos
+---
+
+
+```{r librerias, include=FALSE}
+
+options(scipen = 999)
+
+library(bootstrap)
+library(bslib)
+library(data.table)
+library(dplyr)
+library(DT)
+library(geofacet)
+library(ggmap)
+library(ggplot2)
+library(googlesheets4)
+library(installr)
+library(janitor)
+library(knitr)
+library(leaflet)
+library(leaflet.extras)
+library(lubridate)
+library(lwgeom)
+library(maptools)
+library(openxlsx)
+library(osmdata)
+library(osrm)
+library(plotly)
+library(purrr)
+library(RColorBrewer)
+library(readxl)
+library(readr)
+library(rgdal)
+library(rgeos)
+library(rmarkdown)
+library(rsconnect)
+library(scales)
+library(sf)
+#library(shiny)
+#library(shinydashboard)
+#library(shinyjs)
+library(sodium)
+library(sp)
+library(stringr)
+library(tidygeocoder)
+library(tidyr)
+library(tidyverse)
+library(viridis)
+library(viridisLite)
+library(vroom)
+library(writexl)
+
+#In RStudio, you can render your site locally (knit + preview all .Rmd files in one fell swoop). Se puede escribir en la consola: rmarkdown::render_site()  SIEMPRE HACER ESTO PARA IMPACTAR LOS CAMBIOS EN EL SITIO!
+
+```
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  comment =FALSE,
+  #fig.width = 6, fig.height = 6, 
+  message=FALSE, warning=FALSE
+)
+```
+
+
+La ya conocida teoría de las "Ciudades de 15 minutos", término acuñado por Carlos Moreno [(2016)](https://www.latribune.fr/regions/smart-cities/la-tribune-de-carlos-moreno/la-ville-du-quart-d-heure-pour-un-nouveau-chrono-urbanisme-604358.html), cuenta ya con 7 años de "popularidad", en los que ha generado un intenso debate con partidarios y detractores apasionados.
+
+Si bien la teoría y los conceptos que presenta no son nuevos, ya que han sido tratados previamente por Clarence Perry [(1929)](https://www.taylorfrancis.com/chapters/edit/10.4324/9780429261732-66/neighborhood-unit-clarence-perry), Jane Jacobs [(1961)](https://books.google.com.ar/books/about/Muerte_y_vida_de_las_grandes_ciudades.html?id=fWQeEAAAQBAJ&source=kp_book_description&redir_esc=y), Carmen Belloni [(1984)](https://pascal-francis.inist.fr/vibad/index.php?action=getRecordDetail&idt=6512313),y Sandra Bonfiglioli [(1997)](https://journals.sagepub.com/doi/10.1177/102425899700300405), entre otros; la temática ha recobrado relevancia en el contexto actual luego del gran impacto que ha tenido la pandemia por COVID 19.
+
+Por esa razón, este estudio se propone analizar los datos disponibles de la Ciudad Autónoma de Buenos Aires para evaluar en qué medida puede ser considerada una "ciudad de 15 minutos", una **Ciudad Vecinal**.
+
+
+<h2>
+  PRIMER PASO </br>
+  <small class="text-muted"> |  Metodología de investigación </small>
+</h2>
+
+Para llevar esto a cabo, conformé una muestra territorial, tomando un punto aleatorio dentro de cada barrio de la Ciudad de Buenos Aires.
+A partir de estos puntos, construí una isocrona definida a 15minutos a pie y tomé esas porciones del territorio como las áreas a estudiar.
+
+<details><summary> Código </summary> 
+```{r barrios}
+barrios <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/barrios/barrios.geojson") %>% 
+  mutate(AREAKM2 = round((AREA/1000000),2)) %>% 
+  st_transform(4326)%>%
+  arrange(BARRIO)
+
+barrios_inter = barrios %>% 
+  select(BARRIO,AREAKM2)
+
+mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secretaria-de-desarrollo-urbano/espacios-verdes/espacio_verde_publico.geojson") %>% 
+  st_make_valid() 
+
+#eevv_unido = st_union(mb_eevv)
+
+centroides = st_centroid(barrios) %>% 
+             st_transform(4326)
+
+# RESTO LAS GEOMETRIAS DE ESPACIOS VERDES A LOS BARRIOS PARA QUE CUANDO GENERE LOS PUNTOS ALEATORIOS, NO CAIGAN AHÍ (Restar geometria2 de geometria1):
+
+#barrios_sverde = st_difference(barrios, eevv_unido) 
+
+#LO GUARDO Y LO LLAMO PARA NO REPETIR:
+
+#barrios_sverde = st_read("data/barrios_sverde.geojson")
+
+#GENERO Y GUARDO LOS PTOS ALEATORIOS PORQUE SINO CADA VEZ QUE CORRO EL CODIGO, SON NUEVOS:
+
+#puntos_aleatoriossv <- rowwise(barrios_sverde) %>%
+#  mutate(punto_aleatorio = st_sample(geometry, 1, type = "random")) %>% 
+#  st_drop_geometry(geometry) %>% 
+#  st_as_sf()
+
+#st_write(puntos_aleatoriossv, "data/nuevos_puntos.geojson")
+
+puntos_aleatorios = st_read("data/nuevos_puntos.geojson")
+
+```
+</details>
+
+<details><summary> Código </summary> 
+```{r construccion_isocronas}
+
+#ISOCRONAS PARA PUNTOS ALEATORIOS EN BARRIOS DESCONTANDO ESPACIOS VERDES:
+#ESTA SECCIÓN VOY A EJECUTARLA UNA SOLA VEZ Y GUARDO EL OBJETO PORQUE TARDA MUCHO (itero en cada punto para hacer las isocronas):
+
+#lista_isocronassv <- lapply(puntos_aleatorio$geometry, function(point) {
+#  osrmIsochrone(loc = st_coordinates(point),
+#                breaks = seq(from = 0, to = 15, by = 15),
+#                res = 45,
+#                osrm.profile = "foot")
+#})
+
+# Combino las isocronas
+#isocronas_bindsv <- do.call(rbind, lista_isocronassv)
+
+#st_write(isocronas_bindsv, "data/isocronas.geojson")
+
+
+
+#Ahora simplemente llamo la base que armé y le uno los nombres por orden de las observaciones
+isocronas_barrios = st_read("data/isocronas.geojson") %>% 
+                    st_transform(4326) %>% 
+                    cbind(st_drop_geometry(centroides)) %>% 
+                    st_make_valid()
+
+#Hago una base simplificada para relacionar con los puntos
+isocronas15 = isocronas_barrios %>% 
+                          select(BARRIO)
+```
+</details>
+
+Considerando las diferentes distancias vinculadas a la cotidianeidad de las necesidades y a la magnitud del equipamiento que las sirve, creo isocronas a 30m para abarcar esas variables:
+
+<details><summary> Código </summary> 
+```{r}
+#CONSTRUYO ISOCRONAS DE 30M PARA LOS SERVICIOS MENOS COTIDIANOS
+#lista_isocronas30 <- lapply(puntos_aleatorios$geometry, function(point) {
+#  osrmIsochrone(loc = st_coordinates(point),
+#                breaks = seq(from = 0, to = 30, by = 30),
+#                res = 40,
+#                osrm.profile = "foot")
+#})
+
+# Combino las isocronas
+#isocronas_bind30 <- do.call(rbind, lista_isocronas30)
+
+#st_write(isocronas_bind30, "data/isocronas30.geojson")
+
+isocronas30 = st_read("data/isocronas30.geojson")%>% 
+                    st_transform(4326) %>% 
+                    cbind(st_drop_geometry(centroides)) %>% 
+                    st_make_valid()%>% 
+                    select(BARRIO)
+```
+</details>
+
+Resultado de las isocronas en relación con los puntos y el perímetro de cada barrio:
+
+<details><summary> Código </summary> 
+```{r mapa_isocronas}
+mapa_isocronas =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Barrios CABA","Puntos Aleatorios","Isocronas 15m","Isocronas 30m" ))%>% 
+  
+  addPolygons(data= barrios,
+              color = "black",
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = "white",
+              fillOpacity = 0.5,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> <strong> ÁREA: </strong>", AREAKM2, "km2"),
+              group = "Barrios CABA") %>% 
+  
+  addPolygons(data= isocronas30,
+              color = "#d0e0e3",
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = "#d0e0e3",
+              fillOpacity = 0.5,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Isocronas 30m")%>%
+
+  addPolygons(data= isocronas15,
+              color = "#a2c4c9",
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = "#a2c4c9",
+              fillOpacity = 0.5,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Isocronas 15m") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_isocronas
+```
+
+
+Si bien en un planteo inicial había tomdo como origen de las isocronas los centroides de los barrios, posteriormente modifiqué esto para que la muestra pudiese representar las condiciones en las periferias y superposiciones entre geometrías, ya que son también condiciones reales que se dan dentro de la ciudad, y deben ser contempladas.
+
+Por otro lado, para simplificar el trabajo de intersección de las bases con las isocronas, y la búsqueda de datos en osm, definí algunas funciones inicialmente:
+
+<details><summary> Código </summary> 
+```{r bbox_funciones}
+#DEFINO ESTA FUNCION PARA SIMPLIFICAR EL FILTRO DE LAS VARIABLES CON LA GEOMETRIA DE LAS ISOCRONAS Y HACER EL CONTEO
+conteo_interno = function(db,isocronas, nombre_variable){
+  db %>% 
+  st_transform(4326) %>% 
+  st_intersection(isocronas) %>%
+  group_by(BARRIO) %>%
+  summarise(!!nombre_variable := n())
+}
+
+#DEFINO LA BBOX DE CABA PARA LIMITAR BUSQUEDAS EN OSM
+bbox_caba <- getbb("Ciudad Autónoma de Buenos Aires, Argentina")
+
+#DEFINO UNA FUNCION PARA HACER BUSQUEDAS E OSM
+buscar_osm <- function(nombre_objeto, clave) {
+  opq_objeto <- opq(bbox_caba)
+  opq_objeto <- add_osm_feature(opq_objeto, key = clave)
+  opq_objeto <- osmdata_sf(opq_objeto)
+  
+  assign(nombre_objeto, opq_objeto, envir = .GlobalEnv)
+}
+```
+</details>
+
+
+<h2>
+  BASES DE DATOS </br>
+  <small class="text-muted"> |  Ejes y Variables </small>
+</h2>
+
+Con el territorio definido, comencé la busqueda de bases de datos geográficos disponibles y/o construibles para conformar los distintos ejes y variables con los que se pueden representar las necesidades cotidianas que requieren esta proximidad.
+
+<details><summary> Código </summary> 
+```{r cuadro_bases_de_datos}
+gs4_deauth() # Eliminar auth interactivo (link publico)
+variables = read_sheet("https://docs.google.com/spreadsheets/d/15K_hQPI8NeN-vGZoND9f9yWvzg82VgPx-S1nffsJ3LQ/edit#gid=0")
+
+tabla_variables=
+datatable(variables, 
+  options = list(
+    searching = FALSE,
+    rownames = FALSE,
+    pageLength = 10,
+    dom = 't',
+    scrollY = '300px',
+    scrollX = FALSE,  # Evitar el desplazamiento horizontal
+    language = list(zeroRecords = "No existen datos para los requerimientos seleccionados"),
+    autoWidth = TRUE,
+    columnDefs = list(
+      list(targets = 0, visible = FALSE)
+    )
+  )
+)
+
+```
+</details>
+
+```{r tablaa,results='asis', echo=FALSE, out.width='200%', fig.align='center'}
+print(tabla_variables)
+```
+
+Al analizar las bases disponibles, y las que podía construir desde búsquedas con OSM, se hizo evidente que eran insuficientes y que estos datos no podrían representar la realidad que deseaba investigar.
+
+Sin embargo, continué con el trabajo, ya que dejando una base y una metodología armada, posteriormente se podría completar/mejorar con datos nuevos que vayan apareciendo.
+
+(Resalto este conflicto, ya que las ponderaciones sobre las variables que construyen cada eje, y a su vez el índice, se hicieron desde esta deficiencia y, por lo tanto, no tienen ninguna rigurosidad ni validez. Solo sirven a modo de ejercicio)
+
+
+<h2>
+  NECESIDADES COTIDIANAS </br>
+  <small class="text-muted"> |  Ejes y Variables </small>
+</h2>
+
+<h3>
+  01| Autoabastecimiento
+</h3>
+
+Selecciono y cuento los puntos de autoabastecimiento dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Comercios (15min)
+  - Ferias (30min)
+  - Locales gastronómicos (15min)
+  - Estaciones de servicio (30min)
+  
+<details><summary> Código </summary> 
+```{r autoabastecimiento}
+#AUTOABASTECIMIENTO--------------------------------------------------------------
+
+#HAGO UNA BUQUEDA DE LOS COMERCIOS CON OSM, GUARDO LA NUEVA BASE Y DESHABILITO EL PROCESO PARA NO REPETIRLO:
+
+#buscar_osm("a_comercio", "shop")
+
+#a_comercio_pt = a_comercio$osm_points %>% 
+#  select(name)
+
+#a_comercio_mpol = a_comercio$osm_multipolygons %>% 
+#  select(name) %>% 
+#  st_centroid() %>% 
+#  st_transform(4326)
+
+#a_comercio_pol = a_comercio$osm_polygons %>% 
+#  select(name)%>% 
+#  st_centroid() %>% 
+#  st_transform(4326)
+
+#a_comercio = rbind(a_comercio_pt,a_comercio_pol,a_comercio_mpol) %>% 
+#  conteo_interno(isocronas15,"n_a_comercio")
+
+#st_write(a_comercio, "data/a_comercio.geojson")
+
+a_comercio = st_read("data/a_comercio.geojson")
+
+a_ferias = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-espacio-publico-e-higiene-urbana/ferias-mercados/ferias-itinerantes-de-abastecimiento-barrial.geojson") %>% 
+  conteo_interno(isocronas30,"n_a_ferias")
+
+a_eess = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/estaciones-servicio/estaciones_servicio_caba.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas30,"n_a_eess")
+
+a_gastronomicos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ente-de-turismo/oferta-establecimientos-gastronomicos/oferta-gastronomica.geojson") %>% 
+  conteo_interno(isocronas15,"n_a_gastronomicos")
+
+```
+</details>
+
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea variada y competitiva.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^a_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_a_comercio >= 10, 0.6, n_a_comercio*0.1) +
+                              ifelse(n_a_eess >= 1, 0.08, 0)+
+                              ifelse(n_a_ferias >= 1, 0.02, 0)+
+                              ifelse(n_a_gastronomicos >= 6, 0.28, 0),
+          popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.AUTOABASTECIMIENTO: </strong>",subindice,"<br> 
+                             <strong>  COMERCIOS: </strong>", n_a_comercio,"<br> 
+                             <strong>  FERIAS: </strong>", n_a_ferias,"<br> 
+                             <strong>  LOCALES GASTRONÓMICOS: </strong>", n_a_gastronomicos,"<br> 
+                             <strong>  ESTACIONES DE SERVICIO: </strong>", n_a_eess))
+```
+</details>
+
+Configuro el mapa por primera vez y lo defino como una función.
+
+<details><summary> Código </summary> 
+```{r}
+# Definir una función para crear una paleta de colores personalizada
+colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
+
+# Generar la paleta basada en tu rango de valores (0 a 1)
+n <- 20  # Número de colores en la paleta
+paleta <- colores(n)
+
+pal_i <- colorNumeric(paleta, domain = c(0,1))
+
+mapa_subindice = function(){
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~popup,
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") }
+```
+</details>
+
+**SUBINDICE AUTOABASTECIMIENTO|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+
+
+<h3>
+  02| Cultura
+</h3>
+
+Selecciono y cuento los puntos de oferta cultural dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Centros culturales (15min)
+  - Monumentos (30min)
+  
+<details><summary> Código </summary> 
+```{r cultura}
+# CULTURA------------------------------------------------------------------------
+
+c_culturales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")  %>% conteo_interno(isocronas15,"n_c_culturales")
+
+c_monumentos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-espacio-publico-e-higiene-urbana/monumentos/monumentos.xlsx") %>% 
+  filter(!is.na(LATITUD)) %>% 
+  st_as_sf(coords = c("LONGITUD", "LATITUD"), crs = 4326) %>% 
+  conteo_interno(isocronas30,"n_c_monumentos") %>% 
+  filter(!is.na(BARRIO))
+```
+</details>
+
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos bienes/servicios, y la cantidad necesaria para que la oferta sea variada y competitiva.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^c_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_c_culturales >= 1, 0.85, 0) +
+                     ifelse(n_c_monumentos >= 1, 0.15, 0),
+         popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.CULTURA: </strong>",subindice,"<br> 
+                             <strong>  ESPACIOS CULTURALES: </strong>", n_c_culturales,"<br> 
+                             <strong>  MONUMENTOS: </strong>", n_c_monumentos))
+```
+</details>
+
+<details><summary> Código </summary> 
+```{r}
+# Definir una función para crear una paleta de colores personalizada
+colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
+
+# Generar la paleta basada en tu rango de valores (0 a 1)
+n <- 20  # Número de colores en la paleta
+paleta <- colores(n)
+
+pal_i <- colorNumeric(paleta, domain = c(0,1))
+
+mapa_subindice =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~,
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+**SUBINDICE CULTURA|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+
+
+<h3>
+  03| Deportes
+</h3>
+Selecciono y cuento los puntos de oferta para realizar actividades deportivas dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Clubes (15min)
+  - Polideportivos (30min)
+  
+<details><summary> Código </summary> 
+```{r deportes}
+#DEPORTES-------------------------------------------------------------------------
+
+d_polideportivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/polideportivos/polideportivos.geojson")  %>% 
+  conteo_interno(isocronas30,"n_d_polideportivos")
+
+d_clubes = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/clubes/clubes.geojson") %>% 
+  conteo_interno(isocronas15,"n_d_clubes")
+```
+</details>
+
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos servicios, y la cantidad necesaria para que la oferta sea variada y competitiva.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^d_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_d_clubes >= 2, 0.6, 0) +
+                     ifelse(n_d_polideportivos >= 1, 0.4, 0))
+```
+</details>
+
+<details><summary> Código </summary> 
+```{r}
+# Definir una función para crear una paleta de colores personalizada
+colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
+
+# Generar la paleta basada en tu rango de valores (0 a 1)
+n <- 20  # Número de colores en la paleta
+paleta <- colores(n)
+
+pal_i <- colorNumeric(paleta, domain = c(0,1))
+
+mapa_subindice =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.DEPORTE: </strong>",subindice,"<br> 
+                             <strong>  CLUBES: </strong>", n_d_clubes,"<br> 
+                             <strong>  POLIDEPORTIVOS: </strong>", n_d_polideportivos),
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+**SUBINDICE DEPORTE|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+<h3>
+  04| Educación
+</h3>
+Selecciono y cuento los puntos de oferta para realizar actividades deportivas dentro de las isocronas según nivel de cotidianeidad de la necesidad.
+Las bases disponibles cuentan con datos de:
+  - Jardines Comunitarios (15min)
+  - Centros de primera infancia (15min)
+  - Centros de desarrollo infantil (15min)
+  - Establecimientos educativos (15min)
+  - Universidades (30min)
+  - Bibliotecas (30min)
+  
+<details><summary> Código </summary> 
+```{r educacion}
+#EDUCACION----------------------------------------------------------------------
+
+e_jardinesc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/jardines-comunitarios/jardin_comunitario.geojson") %>% 
+  conteo_interno(isocronas15,"n_e_jardinesc")
+
+e_primerainfancia = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-primera-infancia/centros-de-primera-infancia.geojson") %>% 
+  conteo_interno(isocronas15,"n_e_primerainfancia")
+
+e_desarrolloi = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-desarrollo-infantil/centros-de-desarrollo-infantil.geojson") %>% 
+  conteo_interno(isocronas15,"n_e_desarrolloi")
+
+e_educativos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/establecimientos-educativos/establecimientos_educativos_WGS84.geojson") %>% 
+  conteo_interno(isocronas15,"n_e_educativos")
+
+e_universidades = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/universidades/universidades.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas30,"n_e_universidades") 
+
+e_bibliotecas = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/bibliotecas/bibliotecas.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas30,"n_e_bibliotecas") 
+
+```
+</details>
+
+Luego aplico la ponderación teniendo en cuenta la importancia de la presencia de estos servicios, y la cantidad necesaria para que la oferta sea variada y responda a la densidad poblacional.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^e_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_e_bibliotecas >= 2, 0.05, 0) +
+                     ifelse(n_e_desarrolloi >= 1, 0.05, 0)+
+                     ifelse(n_e_educativos >= 1, 0.05, 0)+
+                     ifelse(n_e_jardinesc >= 1, 0.4, 0)+
+                     ifelse(n_e_primerainfancia >= 1, 0.05, 0)+
+                     ifelse(n_e_universidades >= 1, 0.3, 0)
+           )
+```
+</details>
+
+<details><summary> Código </summary> 
+```{r}
+# Definir una función para crear una paleta de colores personalizada
+colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
+
+# Generar la paleta basada en tu rango de valores (0 a 1)
+n <- 20  # Número de colores en la paleta
+paleta <- colores(n)
+
+pal_i <- colorNumeric(paleta, domain = c(0,1))
+
+mapa_subindice =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.EDUCACIÓN: </strong>",subindice,"<br> 
+                             <strong>  ESTABLECIMIENTOS EDUCATIVOS: </strong>", n_e_educativos,"<br> 
+                             <strong>  UNIVERSIDADES: </strong>", n_e_universidades,"<br> 
+                             <strong>  CENTROS DE PRIMERA INFANCIA: </strong>", n_e_primerainfancia,"<br> 
+                             <strong>  DESARROLLO INICIAL: </strong>", n_e_desarrolloi,"<br> 
+                             <strong>  JARDINES COMUNITARIOS: </strong>", n_e_jardinesc,"<br> 
+                             <strong>  BIBLIOTECAS: </strong>", n_e_bibliotecas),
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+**SUBINDICE EDUCACIÓN|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+<h3>
+  05| Medio Ambiente
+</h3>
+Selecciono y cuento los espacios verdes y los puntos que representan focos de riesgo ambiental dentro de las isocronas. Los espacios verdes deberán estar a un máximo de 15min a pie, mientras que los focos de riesgo pueden tener efectos negativos sobre la vida de las personas incluso en un rango de 30min.
+En este subíndice, las variables afectan positiva y negativamente el resultado.
+  
+<details><summary> Código </summary> 
+```{r medio_ambiente}
+#MEDIO AMBIENTE-------------------------------------------------------------------
+
+#mb_arbolado = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/atencion-ciudadana/arbolado-publico-lineal/arbolado-publico-lineal-2017-2018.geojson") %>% 
+#  conteo_interno("n_tp_arbolado")
+
+mb_eevv = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secretaria-de-desarrollo-urbano/espacios-verdes/espacio_verde_publico.geojson") %>% 
+  st_make_valid() %>% 
+  st_centroid() %>% 
+  #hacer una ponderacion por tipo de espacio verde
+  mutate(clasificac = as.factor(clasificac)) %>% 
+  conteo_interno(isocronas15,"n_mb_eevv")
+
+riesgo1 = st_read("data/riesgo_poligonos.shp") %>% 
+  st_make_valid() %>% 
+  st_transform(4326) %>% 
+  st_centroid() %>% 
+  select(valor)
+
+riesgo2 = st_read("data/riesgo_puntos.shp") %>% 
+  st_make_valid() %>% 
+  st_transform(4326) %>% 
+  st_centroid() %>% 
+  select(valor)
+
+mb_riesgo = rbind(riesgo1,riesgo2) %>% 
+  conteo_interno(isocronas30,"n_mb_riesgo")
+
+```
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^mb_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_mb_eevv >= 1, 1, 0) +
+                     ifelse(n_mb_riesgo >= 1, -1, 0))
+```
+</details>
+
+Construyo el mapa.
+
+<details><summary> Código </summary> 
+```{r}
+# Definir una función para crear una paleta de colores personalizada
+colores <- colorRampPalette(c("#d0e0e3", "#a2c4c9", "#45818e"))
+
+# Generar la paleta basada en tu rango de valores (0 a 1)
+n <- 20  # Número de colores en la paleta
+paleta <- colores(n)
+
+pal_i <- colorNumeric(paleta, domain = barrios_datos$subindice)
+
+mapa_subindice =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.MEDIO AMBIENTE: </strong>",subindice,"<br> 
+                             <strong>  ESPACIOS VERDES: </strong>", n_mb_eevv,"<br> 
+                             <strong>  FOCOS DE RIESGO AMBIENTAL: </strong>", n_mb_riesgo),
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+**SUBINDICE MEDIO AMBIENTE|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+
+</details>
+
+<h3>
+  06| Recreación
+</h3>
+Selecciono y cuento los puntos de oferta para realizar actividades recreativas dentro de las isocronas según nivel de cotidianeidad de la necesidad y alcance/dimensión de los equipamientos (ej:estadios).
+Las bases disponibles cuentan con datos de:
+  - Jugotecas (15min)
+  - Estadios (30min)
+  - Zonas de prioridad peatonal (15min)
+  - Centros de jubilados (15min)
+  - Locales bailables (30min)
+
+<details><summary> Código </summary> 
+```{r recreacion}
+# RECREACION----------------------------------------------------------
+
+r_jugotecas = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
+  conteo_interno(isocronas15,"n_r_jugotecas")
+
+r_estadios = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/estadios/estadios.xlsx") %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas30,"n_r_estadios") 
+
+r_peatonal = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/juegotecas-barriales/juegotecas-barriales.geojson") %>% 
+  conteo_interno(isocronas15,"n_r_peatonal")
+
+r_jubilados = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-jubilados/centros-de-jubilados-reempadronados.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas15,"n_r_jubilados") 
+
+#TRABAJO SOBRE LA BASE DE DATOS DE LOCALES BAILABLES PARA ASIGNAR GEOMETRIA EN BASE A LAS DIRECCIONES DISPONIBLES:
+
+#r_bailables = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/agencia-gubernamental-de-control/locales-bailables/locales_bailables.xlsx")%>% 
+  #clean_names() %>% 
+  #mutate(direccion = paste0(domicilio," ",no, ", Ciudad de Buenos Aires, Argentina")) %>% 
+  #filter(!grepl("VENCI|SUSP|BAJA|DENE", estado)) %>% 
+  #filter(!is.na(estado)) 
+
+#evito problemas por cortes en la busqueda y después guardo el archivo y desactivo esta parte del código porque se demora mucho
+#Sys.sleep(1)
+
+#r_bailables = r_bailables %>%
+  #geocode(address = direccion, method = "osm")
+
+#r_bailables = r_bailables %>%
+  #filter(!is.na(lat)) %>% 
+  #st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  #st_write("data/r_bailables.geojson")
+
+r_bailables =  st_read("data/r_bailables.geojson") %>% 
+  conteo_interno(isocronas30,"n_r_bailables") 
+```
+</details>
+
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^r_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_r_bailables >= 1, 0.05, 0) +
+                     ifelse(n_r_estadios >= 1, 0.1, 0)+
+                     ifelse(n_r_jubilados >= 1, 0.2, 0)+
+                     ifelse(n_r_jugotecas >= 1, 0.25, 0)+
+                     ifelse(n_r_peatonal >= 1, 0.4, 0)) %>% 
+  mutate(popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.RECREACIÓN: </strong>",subindice,"<br> 
+                             <strong>  ZONAS PEATONALES: </strong>", n_r_peatonal,"<br> 
+                             <strong>  ESTADIOS: </strong>", n_r_estadios, "<br> 
+                             <strong>  CENTROS DE JUBILADOS: </strong>", n_r_jubilados,"<br> 
+                             <strong>  JUGOTECAS: </strong>", n_r_jugotecas,"<br> 
+                             <strong>  LOCALES BAILABLES: </strong>", n_r_bailables))
+```
+</details>
+
+Construyo el mapa.
+
+<details><summary> Código </summary> 
+```{r}
+mapa_subindice = function(){
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~popup,
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") }
+```
+</details>
+
+**SUBINDICE RECREACIÓN|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+<h3>
+  07| Salud
+</h3>
+Selecciono y cuento los puntos de equipamiento para la salud dentro de las isocronas según nivel de cotidianeidad de la necesidad y alcance/dimensión de los equipamientos (ej:hospitales).
+Las bases disponibles cuentan con datos de:
+  - Centros médicos barriales (15min)
+  - Centros de desarrollo infantil (15min)
+  - Centros de Salud y Acción Comunitaria (CeSAC) (15min)
+  - Centros de atención integral para la mujer (15min)
+  - Estaciones Saludables (15min)
+  - Farmacias (15min)
+  - Geriátricos (30min)
+  - Hospitales (30min)
+  - Centros de salud privados (30min)
+  - Unidades febriles de urgencia (30min)
+  - Centros de vacunación infantil (15min)
+  - Centros de vacunación para adultos mayores (15min)
+  
+  
+<details><summary> Código </summary> 
+```{r salud}
+# SALUD-------------------------------------------------------------------------
+
+s_ufebriles = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/ufus/ubicacion-ufus.geojson")  %>% 
+  conteo_interno(isocronas15,"n_s_ufebriles")
+
+s_cimujer = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-integrales-mujer/centros-integrales-de-la-mujer.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas15,"n_s_cimujer")
+
+s_hospitales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/hospitales/hospitales.geojson")  %>% 
+  conteo_interno(isocronas30,"n_s_hospitales")
+
+s_cdinfantil = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-desarrollo-humano-y-habitat/centros-desarrollo-infantil/centros-de-desarrollo-infantil.geojson")  %>% 
+  conteo_interno(isocronas15,"n_s_cdinfantil")
+
+s_farmacias = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/farmacias/farmacias.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas15,"n_s_farmacias")
+
+s_privados = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/centros-salud-privados/centros-de-salud-privados.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas30,"n_s_privados")
+
+s_vinfantil = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/vacunatorios-infantiles/vacunatorios_infantiles_WGS84.geojson")  %>% 
+  conteo_interno(isocronas30,"n_s_vinfantil")
+
+s_cesac = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/centros-salud-accion-comunitaria-cesac/centros_de_salud_nivel_1_BADATA_WGS84.geojson")  %>% 
+  conteo_interno(isocronas15,"n_s_cesac")
+
+s_vmayores = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/vacunatorios-adultos-mayores/vacunatorios-adultos-mayores.geojson")  %>% 
+  conteo_interno(isocronas30,"n_s_vmayores")
+
+s_barriales = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/centros-medicos-barriales/centros-medicos-barriales.geojson")  %>% 
+  conteo_interno(isocronas15,"n_s_barriales") %>% 
+  mutate(BARRIO = toupper(BARRIO))
+
+s_geriatricos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/geriatricos/geriatricos.geojson")  %>% 
+  conteo_interno(isocronas30,"n_s_geriatricos")
+
+s_esaludables = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/vicejefatura-de-gobierno/estaciones-saludables/estaciones-saludables.geojson")  %>% 
+  conteo_interno(isocronas15,"n_s_esaludables")
+```
+</details>
+
+Aplico la ponderación teniendo en cuenta la importancia de la presencia/ausencia de estos espacios, y la cantidad para que se pueda afirmar que las personas que habitan este territorio acceden a un medio ambiente sano.
+
+<details><summary> Código </summary> 
+```{r}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^r_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+barrios_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = barrios_inter)
+
+barrios_datos = barrios_datos %>% 
+  mutate(subindice = ifelse(n_r_bailables >= 1, 0.05, 0) +
+                     ifelse(n_r_estadios >= 1, 0.1, 0)+
+                     ifelse(n_r_jubilados >= 1, 0.2, 0)+
+                     ifelse(n_r_jugotecas >= 1, 0.25, 0)+
+                     ifelse(n_r_peatonal >= 1, 0.4, 0)) %>% 
+  mutate(popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                             <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                             <strong> I.RECREACIÓN: </strong>",subindice,"<br> 
+                             <strong>  ZONAS PEATONALES: </strong>", n_r_peatonal,"<br> 
+                             <strong>  ESTADIOS: </strong>", n_r_estadios, "<br> 
+                             <strong>  CENTROS DE JUBILADOS: </strong>", n_r_jubilados,"<br> 
+                             <strong>  JUGOTECAS: </strong>", n_r_jugotecas,"<br> 
+                             <strong>  LOCALES BAILABLES: </strong>", n_r_bailables))
+```
+</details>
+
+Configuro el mapa.
+
+<details><summary> Código </summary> 
+```{r}
+mapa_subindice =
+leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Subindice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= barrios_datos,
+              color = ~pal_i(subindice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(subindice),
+              fillOpacity = 0.8,
+              popup = ~popup,
+              group = "Subindice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios") 
+```
+</details>
+
+**SUBINDICE SALUD|**
+  Mapeo por barrio basado en los valores de la muestra
+
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_subindice
+```
+
+
+<h3>
+  08| Seguridad
+</h3>
+
+<details><summary> Código </summary> 
+```{r seguridad}
+# SEGURIDAD---------------------------------------------------------------------
+
+#TOMO CADA BASE DE DATOS, LA INTERSECTO Y HAGO EL CONTEO:
+
+se_comisarias = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/comisarias-policia-ciudad/comisarias-policia-de-la-ciudad.geojson") %>% 
+  select(nombre, nom_2,tipo) %>% 
+  conteo_interno(isocronas30,"n_se_comisarias")
+  
+  
+se_bomberos = read.csv("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-justicia-y-seguridad/cuarteles-destacamentos-bomberos/cuarteles-y-destacamentos-de-bomberos-de-policia-federal-argentina.csv",
+                    stringsAsFactors = T) %>% 
+  select(long,lat,dcia,gestion) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas30,"n_se_bomberos")
+
+```
+</details>
+
+<h3>
+  09| Tramites
+</h3>
+
+<details><summary> Código </summary> 
+```{r tramites}
+
+#TRAMITES-----------------------------------------------------------------------
+
+#OBTENGO LOS PUNTOS DE ATENCION CIUDADANA BUSCANDO LAS DIRECCIONES QUE FIGURAN EN LA BASE DE DATOS:
+
+#t_puntos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-gobierno/puntos-atencion/puntos-de-atencion.xlsx") %>% 
+#  mutate(direccion = paste0(calle_nombre," ",calle_altura, ", Ciudad de Buenos Aires, Argentina"))
+
+#evito problemas por cortes en la busqueda y después guardo el archivo y desactivo esta parte del código porque se demora mucho
+#Sys.sleep(1)
+
+#t_puntos = t_puntos %>%
+#  geocode(address = direccion, method = "osm")
+
+#st_write(t_puntos, "data/t_puntos.geojson")
+
+t_puntos = st_read("data/t_puntos.geojson") %>% 
+  filter(!is.na(lat)) %>% 
+  st_drop_geometry(geometry) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas15,"n_t_puntos")
+
+t_cajeros = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/secretaria-de-desarrollo-urbano/cajeros-automaticos/cajeros-automaticos.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  select(id)
+
+t_bancos = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-economia-y-finanzas/bancos/bancos.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  select(id)
+
+t_bancosyc = rbind(t_bancos,t_cajeros) %>% 
+  mutate(geos = as.character(geometry)) %>% 
+  filter(!duplicated(geos)) %>% 
+  conteo_interno(isocronas15,"n_t_bancosyc")
+
+rm(t_bancos,t_cajeros)
+```
+</details>
+
+<h3>
+  10| Transporte
+</h3>
+
+<details><summary> Código </summary> 
+```{r transporte}
+
+#TRANSPORTE---------------------------------------------------------------------
+
+tp_colectivos = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/colectivos-paradas/paradas-de-colectivo.geojson") %>% 
+  conteo_interno(isocronas15,"n_tp_colectivos")
+
+tp_bicis = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/estaciones-bicicletas-publicas/nuevas-estaciones-bicicletas-publicas.geojson") %>% 
+  conteo_interno(isocronas15,"n_tp_bicis")
+
+tp_subte = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/sbase/subte-estaciones/estaciones-de-subte.geojson") %>% 
+  conteo_interno(isocronas15,"n_tp_subte")
+
+tp_ffcc = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/estaciones-ferrocarril/estaciones-de-ferrocarril.geojson") %>% 
+  conteo_interno(isocronas15,"n_tp_ffcc")
+
+tp_garagec = st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/garajes-comerciales/garajes-comerciales.geojson") %>% 
+  conteo_interno(isocronas15,"n_tp_garagec")
+
+tp_garagem = read.xlsx("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/estacionamientos-motos/estacionamientos-de-motos-publico.xlsx") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  conteo_interno(isocronas15,"n_tp_garagem")
+
+```
+</details>
+
+<h3>
+  CONSTRUCCIÓN DEL ÍNDICE </br>
+  <small class="text-muted"> |  Ponderación de los Ejes </small>
+</h3>
+
+<details><summary> Código </summary> 
+```{r unificado}
+#LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
+bases_de_datos <- ls() %>%
+  grep("^a_|^d_|^e_|^r_|^s_|^se_|^t_", ., value = TRUE) %>%
+  lapply(get)
+
+# ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
+isocronas_datos <- bases_de_datos %>% 
+  reduce(function(df1, df2) {
+    left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
+      replace(is.na(.), 0)
+  }, .init = isocronas_barrios)
+```
+</details>
+
+<h2>
+  CONCLUSIONES </br>
+  <small class="text-muted"> |  Y Aprendizajes </small>
+</h2>
+
+<h3>
+  Sobre el contenido 
+</h3>
+  - Inclusión del eje laboral.
+  - Contar con bases de datos necesarias.
+  - Ponderación rigurosa construida en base a conocimientos multidisciplinarios.
+  
+<h3>
+  Sobre el ejercicio para abordar el contenido 
+</h3>
+  - Diferentes herramientas de comunicación.
+  - Simplificación del código.
+  - Reducción de tiempos para el procesamiento de datos.
+  - Usar otro punto dentro de cada barrio para mejorar la representatividad de la muestra,
+  - Conocimientos personales para no romper todo cada 2x3...
+  
+
+<h2>
+  PRÓXIMOS PASOS </br>
+  <small class="text-muted"> |  Nuevos temas a desarrollar </small>
+</h2>
+
+Profundizar el análisis de las ciudades de proximidad, desde la mirada de:
+
+  - Personas con movilidad reducida
+  - Adultos mayores
+  - Infancias
+  - Mujeres y disidencias
+  - Urbanizaciones informales
+
+
+
+
