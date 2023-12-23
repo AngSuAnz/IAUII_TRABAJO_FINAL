@@ -1,7 +1,7 @@
 ---
-title: "Trabajo Final ---"
+title: "Instrumentos de Análisis Urbano II"
 description: |
-  Instrumentos de Análisis Urbano II
+  Trabajo Final
 site: distill::distill_website
 ---
 
