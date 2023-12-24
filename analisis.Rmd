@@ -397,7 +397,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  LOCALES GASTRONÓMICOS: </strong>", n_a_gastronomicos,"<br> 
                              <strong>  ESTACIONES DE SERVICIO: </strong>", n_a_eess))
 
-barrios_datos_a = barrios_datos
+barrios_datos_a = barrios_datos %>% 
+  select(BARRIO, subindice) %>% 
+  rename(si_a = subindice)
 ```
 </details>
 
@@ -495,7 +497,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  ESPACIOS CULTURALES: </strong>", n_c_culturales,"<br> 
                              <strong>  MONUMENTOS: </strong>", n_c_monumentos))
 
-barrios_datos_c = barrios_datos
+barrios_datos_c = barrios_datos %>% 
+  select(BARRIO, subindice) %>% 
+  rename(si_c = subindice)
 ```
 </details>
 
@@ -547,7 +551,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  CLUBES: </strong>", n_d_clubes,"<br> 
                              <strong>  POLIDEPORTIVOS: </strong>", n_d_polideportivos))
 
-barrios_datos_d = barrios_datos
+barrios_datos_d = barrios_datos %>% 
+  select(BARRIO, subindice) %>% 
+  rename(si_d = subindice)
 ```
 </details>
 
@@ -626,7 +632,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  BIBLIOTECAS: </strong>", n_e_bibliotecas)
            )
 
-barrios_datos_e = barrios_datos
+barrios_datos_e = barrios_datos %>% 
+  select(BARRIO, subindice) %>% 
+  rename(si_e = subindice)
 ```
 </details>
 
@@ -693,7 +701,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  ESPACIOS VERDES: </strong>", n_mb_eevv,"<br> 
                              <strong>  FOCOS DE RIESGO AMBIENTAL: </strong>", n_mb_riesgo))
 
-barrios_datos_mb = barrios_datos
+barrios_datos_mb = barrios_datos %>% 
+  select(BARRIO, subindice) %>% 
+  rename(si_mb = subindice)
 ```
 </details>
 
@@ -783,7 +793,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  JUGOTECAS: </strong>", n_r_jugotecas,"<br> 
                              <strong>  LOCALES BAILABLES: </strong>", n_r_bailables))
 
-barrios_datos_r = barrios_datos
+barrios_datos_r = barrios_datos %>% 
+  select(BARRIO, subindice) %>%  
+  rename(si_r = subindice)
 ```
 </details>
 
@@ -900,7 +912,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  GERIATRICOS: </strong>", n_s_geriatricos,"<br> 
                              <strong>  ESTACIONES SALUDABLES: </strong>", n_s_esaludables))
 
-barrios_datos_s = barrios_datos
+barrios_datos_s = barrios_datos %>% 
+  select(BARRIO, subindice) %>%  
+  rename(si_s = subindice)
 ```
 </details>
 
@@ -957,7 +971,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  COMISARIAS: </strong>", n_se_comisarias,"<br> 
                              <strong>  BOMBEROS: </strong>", n_se_bomberos))
 
-barrios_datos_se = barrios_datos
+barrios_datos_se = barrios_datos %>% 
+  select(BARRIO, subindice) %>%  
+  rename(si_se = subindice)
 ```
 </details>
 
@@ -1033,7 +1049,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  PUNTOS DE ATENCIÓN: </strong>", n_t_puntos,"<br> 
                              <strong>  BOMBEROS: </strong>", n_t_bancosyc))
 
-barrios_datos_t = barrios_datos
+barrios_datos_t = barrios_datos %>% 
+  select(BARRIO, subindice) %>%  
+  rename(si_t = subindice)
 ```
 </details>
 
@@ -1102,7 +1120,9 @@ barrios_datos = f_barrios_datos() %>%
                              <strong>  GARAGE C.: </strong>", n_tp_garagec,"<br> 
                              <strong>  GARAGE M.: </strong>", n_tp_garagem))
 
-barrios_datos_tp = barrios_datos
+barrios_datos_tp = barrios_datos %>% 
+  select(BARRIO, subindice) %>%  
+  rename(si_tp = subindice)
 ```
 </details>
 
@@ -1113,26 +1133,98 @@ barrios_datos_tp = barrios_datos
 mapa_subindice()
 ```
 
-<h3>
+<h2>
   CONSTRUCCIÓN DEL ÍNDICE </br>
   <small class="text-muted"> |  Ponderación de los Ejes </small>
-</h3>
+</h2>
+
+Para concluír, tomo todos los subindices y los pondero a su vez para poder obtener un valor agregado para cada barrio de la Ciudad Autónoma de Buenos Aires.
 
 <details><summary> Código </summary> 
 ```{r unificado}
 #LLAMO TODAS LAS BASES DE DATOS Y LAS FILTRO SEGUN SI SON DE LAS CATEGORIAS DE ANALISIS
 bases_de_datos <- ls() %>%
-  grep("^a_|^d_|^e_|^r_|^s_|^se_|^t_", ., value = TRUE) %>%
+  grep("^barrios_datos_", ., value = TRUE) %>%
   lapply(get)
 
 # ARMO UNA BASE UNIFICADA HACIENDO LEFT_JOINS ITERATIVOS CON AS BD
-isocronas_datos <- bases_de_datos %>% 
+indice_unificado <- bases_de_datos %>% 
   reduce(function(df1, df2) {
     left_join(df1, df2 %>% st_drop_geometry(), by = "BARRIO") %>%
       replace(is.na(.), 0)
   }, .init = isocronas_barrios)
+
+
+barrios_datos = f_barrios_datos() %>% 
+  mutate(indice = round((si_a*0.2 +
+           si_c*0.1 + 
+           si_d*0.03 +
+           si_e*0.2 +
+           si_mb*0.1 +
+           si_r*0.05 +
+           si_s*0.2 +
+           si_se*0.02 +
+           si_t*0.02 +
+           si_tp*0.08),2),
+         popup = paste("<strong> BARRIO: </strong>", BARRIO,"<br> 
+                 <strong> ÁREA: </strong>", AREAKM2, "km2<br> 
+                 <strong> INDICE: </strong>",indice,"<br> 
+                 <strong> -Autonomía: </strong>", si_a,"<br> 
+                 <strong> -Cultura: </strong>", si_c,"<br> 
+                 <strong> -Deporte: </strong>", si_d,"<br> 
+                 <strong> -Educación: </strong>", si_e,"<br> 
+                 <strong> -Medio Ambiente: </strong>", si_mb,"<br> 
+                 <strong> -Recreación: </strong>", si_r,"<br> 
+                 <strong> -Salud: </strong>", si_s,"<br> 
+                 <strong> -Seguridad: </strong>", si_se,"<br> 
+                 <strong> -Trámites: </strong>", si_t,"<br> 
+                 <strong> -Transporte: </strong>", si_tp))
+
+indice_unificado = barrios_datos
 ```
 </details>
+
+
+Configuro el mapa.
+
+<details><summary> Código </summary> 
+```{r}
+mapa_indice = leaflet(st_zm(barrios) %>% st_transform(4326)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "OSM",
+                   options = providerTileOptions(minzoom = 1, maxzoom = 15)) %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satelite") %>%
+  addLayersControl(
+    baseGroups = c("OSM","Satelite"), 
+    overlayGroups = c("Indice por barrio","Puntos Aleatorios"))%>% 
+  
+  addPolygons(data= indice_unificado,
+              color = ~pal_i(indice),
+              weight = 0.4,
+              opacity = 0.7,
+              fillColor = ~pal_i(indice),
+              fillOpacity = 0.8,
+              popup = ~popup,
+              group = "Indice por barrio") %>% 
+  
+      addCircleMarkers(data=puntos_aleatorios,
+              fillColor = "#45818e",
+              weight = 0.5,
+              color = "#45818e",
+              fillOpacity = 0.5,
+              radius = 2,
+              popup = ~paste("<strong> BARRIO: </strong>", BARRIO),
+              group = "Puntos Aleatorios")
+```
+</details>
+
+**INDICE DE CIUDAD VECINAL|**
+  Mapeo por barrio basado en los valores de la muestra
+  
+```{r, echo=FALSE, out.width='200%', fig.align='center'}
+mapa_indice
+```
+
 
 <h2>
   CONCLUSIONES </br>
